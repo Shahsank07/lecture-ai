@@ -1,0 +1,488 @@
+/* FlashcardViewer.css - Material Design */
+
+/* ── Container ── */
+.fc-container {
+  padding: 8px 0;
+}
+
+/* ── Mode Switcher Bar ── */
+.fc-mode-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  border: 1px solid var(--border-medium);
+}
+
+.fc-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fc-mode-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.fc-mode-btn.active {
+  background: var(--google-blue-light);
+  color: var(--google-blue);
+}
+
+/* ── Empty State ── */
+.fc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+  min-height: 300px;
+}
+
+.fc-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.fc-empty-state h3 {
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 500;
+  margin: 0 0 8px 0;
+}
+
+.fc-empty-state p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0 0 24px 0;
+  max-width: 320px;
+}
+
+.fc-generate-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--google-blue);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fc-generate-btn:hover {
+  background: #1557b0;
+}
+
+.fc-spin {
+  animation: fc-spinner 1s linear infinite;
+}
+
+@keyframes fc-spinner {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Progress Bar ── */
+.fc-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.fc-progress-text {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-width: 50px;
+}
+
+.fc-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.fc-progress-fill {
+  height: 100%;
+  background: var(--google-blue);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.fc-shuffle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fc-shuffle-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ── 3D Flip Card ── */
+.fc-card-wrapper {
+  perspective: 1000px;
+  cursor: pointer;
+  margin-bottom: 24px;
+}
+
+.fc-card {
+  position: relative;
+  width: 100%;
+  min-height: 240px;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.fc-card-wrapper.flipped .fc-card {
+  transform: rotateY(180deg);
+}
+
+.fc-card-front,
+.fc-card-back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+
+.fc-card-back {
+  transform: rotateY(180deg);
+  background: var(--google-blue-light);
+  border-color: rgba(26, 115, 232, 0.2);
+}
+
+.fc-card-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--google-blue);
+  margin-bottom: 16px;
+}
+
+.fc-card-content {
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.fc-card-hint {
+  margin-top: 24px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* ── Navigation Row ── */
+.fc-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fc-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-medium);
+  border-radius: 50%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.fc-nav-btn:hover:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+.fc-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.fc-keyboard-hints {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* ── Quiz Section ── */
+.fc-quiz-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.fc-quiz-progress-text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.fc-quiz-score {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--google-blue);
+}
+
+.fc-quiz-question {
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 500;
+  line-height: 1.6;
+  margin-bottom: 24px;
+  padding: 24px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-medium);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Quiz Options ── */
+.fc-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fc-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.fc-quiz-option:hover:not(:disabled) {
+  background: var(--bg-secondary);
+}
+
+.fc-quiz-option.selected {
+  border-color: var(--google-blue);
+  background: var(--google-blue-light);
+}
+
+.fc-quiz-option.correct {
+  background: var(--google-green-light);
+  border-color: var(--google-green);
+  color: var(--google-green);
+}
+
+.fc-quiz-option.wrong {
+  background: var(--google-red-light);
+  border-color: var(--google-red);
+  color: var(--google-red);
+}
+
+.fc-quiz-option:disabled {
+  cursor: default;
+}
+
+.fc-option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.fc-quiz-option.selected .fc-option-letter {
+  background: var(--google-blue);
+  color: white;
+  border-color: var(--google-blue);
+}
+
+.fc-quiz-option.correct .fc-option-letter {
+  background: var(--google-green);
+  color: white;
+  border-color: var(--google-green);
+}
+
+.fc-quiz-option.wrong .fc-option-letter {
+  background: var(--google-red);
+  color: white;
+  border-color: var(--google-red);
+}
+
+.fc-option-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.fc-option-icon {
+  margin-left: auto;
+}
+
+.fc-option-icon.correct {
+  color: var(--google-green);
+}
+
+.fc-option-icon.wrong {
+  color: var(--google-red);
+}
+
+/* ── Quiz Results ── */
+.fc-quiz-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 24px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.fc-results-trophy {
+  color: var(--google-yellow);
+  margin-bottom: 24px;
+}
+
+.fc-results-title {
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0 0 24px 0;
+}
+
+.fc-results-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fc-score-big {
+  font-size: 3rem;
+  font-weight: 600;
+  color: var(--google-blue);
+  line-height: 1;
+}
+
+.fc-score-divider {
+  font-size: 2rem;
+  color: var(--text-secondary);
+}
+
+.fc-score-total {
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.fc-results-percent {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.fc-results-message {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-bottom: 32px;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+.fc-retry-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  padding: 10px 24px;
+  border-radius: var(--radius-full);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.fc-retry-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .fc-card-content {
+    font-size: 1rem;
+  }
+  .fc-card-front,
+  .fc-card-back {
+    padding: 24px;
+  }
+  .fc-quiz-question {
+    font-size: 1rem;
+    padding: 20px;
+  }
+  .fc-keyboard-hints {
+    display: none;
+  }
+}

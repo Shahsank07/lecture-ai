@@ -1,0 +1,176 @@
+/* ============================================
+   Lecture Companion — Main Entry Styles
+   Imports Design System + App Layout
+   ============================================ */
+
+@import './styles/design-system.css';
+
+/* ---------- App Layout ---------- */
+.app-layout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+}
+
+.main-content {
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  padding-top: var(--header-height);
+  transition: margin-left var(--transition-base);
+}
+
+/* Desktop: sidebar pushes content */
+@media (min-width: 901px) {
+  body.sidebar-open .main-content {
+    margin-left: var(--sidebar-width);
+  }
+}
+
+.page-container {
+  padding: var(--content-padding);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  animation: fadeInUp var(--transition-slow) ease-out;
+}
+
+/* Back button */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  min-height: 36px;
+}
+
+.back-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+/* Page header */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-header h1 {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.page-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-header-emoji {
+  font-size: 2rem;
+}
+
+.page-header-info h1 {
+  margin-bottom: 2px;
+}
+
+.page-header-info p {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-container { padding: 16px; }
+  .page-header { flex-direction: column; align-items: flex-start; }
+  .page-header h1 { font-size: var(--text-xl); }
+}
+
+@media (max-width: 480px) {
+  .page-container { padding: 12px; }
+}
+
+/* ---------- Layout Utilities ---------- */
+.layout-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-subtle);
+  z-index: var(--z-fixed);
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-base);
+}
+
+@media (max-width: 900px) {
+  .layout-sidebar {
+    transform: translateX(-100%);
+  }
+  .layout-sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+.layout-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--content-padding);
+}
+
+@media (min-width: 901px) {
+  body.sidebar-open .layout-header {
+    left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+  }
+}
+
+@media (max-width: 900px) {
+  .layout-header { left: 0; width: 100%; }
+}
+
+.layout-main {
+  flex: 1;
+  padding-top: var(--header-height);
+  min-height: 100vh;
+}
+
+/* ---------- Print Styles ---------- */
+@media print {
+  .layout-header,
+  .layout-sidebar,
+  .btn,
+  .modal-overlay,
+  .toast-container,
+  .session-controls,
+  .md-bottom-audio-bar {
+    display: none !important;
+  }
+  .main-content { padding-top: 0; margin-left: 0 !important; }
+  .page-container { padding: 0; max-width: none; }
+  .card { border: none; box-shadow: none; }
+  body { background: white; }
+}

@@ -1,0 +1,64 @@
+.subject-studio-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--bg-surface, #f8f9fa);
+  border: 1px solid var(--border-color, #dadce0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subject-studio-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #5f6368;
+  text-align: center;
+  padding: 24px;
+}
+
+.subject-studio-empty .empty-icon {
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.subject-studio-empty .empty-subtext {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  max-width: 240px;
+  margin-top: 8px;
+}
+
+/* Correction styles for index.css will be applied globally */
+.correction-container {
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 4px;
+  background-color: #fce8e6; /* light red tint */
+}
+
+.correction-container:hover {
+  background-color: #e6f4ea; /* light green tint on hover */
+}
+
+.correction-del {
+  color: var(--google-red, #d93025);
+  text-decoration: line-through;
+  font-size: 0.95em;
+  opacity: 0.8;
+}
+
+.correction-ins {
+  color: var(--google-green, #1e8e3e);
+  text-decoration: none;
+  font-weight: 600;
+}

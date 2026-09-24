@@ -1,0 +1,119 @@
+/* Progress Page Styles */
+.progress-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.progress-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.prog-card {
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.prog-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.prog-icon.green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.prog-icon.purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.prog-icon.blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.prog-icon.orange { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+.prog-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prog-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.prog-val {
+  font-size: 1.35rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.prog-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.mastery-card {
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mastery-card h3 {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.mastery-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mastery-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mastery-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+}
+
+.mastery-info .name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.mastery-info .pct {
+  color: var(--text-tertiary);
+}
+
+.prog-track {
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+
+.prog-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+}
+
+.prog-fill.green { background: linear-gradient(90deg, #10b981, #34d399); }
+.prog-fill.purple { background: linear-gradient(90deg, #635bff, #a855f7); }
+.prog-fill.blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.prog-fill.orange { background: linear-gradient(90deg, #f59e0b, #fbbf24); }

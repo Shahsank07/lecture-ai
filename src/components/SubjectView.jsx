@@ -1,0 +1,173 @@
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Plus, Play, Trash2, Calendar, Clock, FileText, Mic } from 'lucide-react';
+import { getClassesBySubject, saveClass, deleteSubject, deleteClass } from '../db';
+import { generateId, formatDate, formatDuration } from '../utils/helpers';
+import { getTopicPreset } from '../utils/topicThemes';
+import './SubjectView.css';
+
+function SubjectView({ subject, onNavigate, onRefresh }) {
+  const [classes, setClasses] = useState([]);
+
+  const loadClasses = async () => {
+    const cls = await getClassesBySubject(subject.id);
+    setClasses(cls);
+  };
+
+  useEffect(() => {
+    loadClasses();
+  }, [subject.id]);
+
+  const handleNewClass = async () => {
+    const classNumber = classes.length + 1;
+    const newClass = {
+      id: generateId(),
+      subjectId: subject.id,
+      title: `Class ${classNumber}`,
+      date: new Date().toISOString(),
+      transcript: '',
+      notes: [],
+      status: 'recording',
+      duration: 0,
+    };
+    await saveClass(newClass);
+    onNavigate(`session:${newClass.id}`);
+  };
+
+  const handleContinueClass = (classId) => {
+    onNavigate(`session:${classId}`);
+  };
+
+  const handleViewNotes = (classId) => {
+    onNavigate(`notes:${classId}`);
+  };
+
+  const handleDeleteClass = async (e, classId) => {
+    e.stopPropagation();
+    if (confirm('Delete this class and all its notes?')) {
+      await deleteClass(classId);
+      loadClasses();
+    }
+  };
+
+  const handleDeleteSubject = async () => {
+    if (confirm(`Delete "${subject.name}" and all its classes? This cannot be undone.`)) {
+      await deleteSubject(subject.id);
+      onRefresh();
+      onNavigate('dashboard');
+    }
+  };
+
+  const lastPausedClass = classes.find((c) => c.status === 'paused' || c.status === 'recording');
+  const topicTheme = getTopicPreset(subject.topicPreset || subject.name);
+
+  const DEMO_CLASSES = [
+    { id: 'demo-1', subjectId: subject.id, title: 'Binary Search Trees & Traversal', date: new Date().toISOString(), duration: 2556, status: 'completed' },
+    { id: 'demo-2', subjectId: subject.id, title: 'Tree Balancing (AVL Trees)', date: new Date(Date.now() - 86400000).toISOString(), duration: 1840, status: 'completed' },
+    { id: 'demo-3', subjectId: subject.id, title: 'Heap Data Structures', date: new Date(Date.now() - 172800000).toISOString(), duration: 2100, status: 'completed' }
+  ];
+
+  const displayClasses = classes.length > 0 ? classes : DEMO_CLASSES;
+
+  return (
+    <div className="subject-view-container">
+      <nav className="subject-nav">
+        <button className="btn-back" onClick={() => onNavigate('dashboard')} aria-label="Back to Dashboard">
+          <ArrowLeft size={20} />
+        </button>
+        <span className="nav-title">{subject.name}</span>
+      </nav>
+
+      <header 
+        className="subject-header" 
+        style={{ backgroundColor: topicTheme.accentColor || 'var(--google-blue)' }}
+      >
+        <div className="subject-header-content">
+          <div className="subject-header-title-wrapper">
+            <span className="subject-header-emoji">{subject.emoji}</span>
+            <h1 className="subject-header-title">{subject.name}</h1>
+          </div>
+          <span className="subject-header-badge">
+            {classes.length} {classes.length === 1 ? 'Class' : 'Classes'}
+          </span>
+        </div>
+      </header>
+
+      <main className="subject-main">
+        <div className="subject-actions">
+          <button className="btn-record-new" onClick={handleNewClass}>
+            <Plus size={20} />
+            Record New Lecture
+          </button>
+          {lastPausedClass && (
+            <button className="btn-continue" onClick={() => handleContinueClass(lastPausedClass.id)}>
+              <Play size={20} />
+              Continue {lastPausedClass.title}
+            </button>
+          )}
+        </div>
+
+        {displayClasses.length === 0 ? (
+          <div className="subject-empty-state">
+            <div className="empty-icon">🎙️</div>
+            <h3>No classes recorded</h3>
+            <p>Start your first class to begin recording and creating smart notes automatically.</p>
+          </div>
+        ) : (
+          <div className="class-list-container">
+            {displayClasses.map((cls) => (
+              <div
+                key={cls.id}
+                role="button"
+                tabIndex={0}
+                className="class-card"
+                onClick={() => cls.status === 'completed' ? handleViewNotes(cls.id) : handleContinueClass(cls.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    cls.status === 'completed' ? handleViewNotes(cls.id) : handleContinueClass(cls.id);
+                  }
+                }}
+              >
+                <div className="class-card-icon" style={{ color: topicTheme.accentColor, backgroundColor: `${topicTheme.accentColor}15` }}>
+                  {cls.status === 'recording' || cls.status === 'paused' ? <Mic size={24} /> : <FileText size={24} />}
+                </div>
+                
+                <div className="class-card-content">
+                  <h3 className="class-card-title">{cls.title}</h3>
+                  <div className="class-card-meta">
+                    <span className="meta-item"><Calendar size={14} /> {formatDate(cls.date)}</span>
+                    {cls.duration > 0 && (
+                      <span className="meta-chip"><Clock size={12} /> {formatDuration(cls.duration)}</span>
+                    )}
+                    {cls.status !== 'completed' && (
+                      <span className={`status-chip status-${cls.status}`}>{cls.status}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="class-card-actions">
+                  <button 
+                    className="btn-icon-danger"
+                    onClick={(e) => handleDeleteClass(e, cls.id)}
+                    title="Delete class"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="danger-zone">
+          <button className="btn-delete-subject" onClick={handleDeleteSubject}>
+            <Trash2 size={18} />
+            Delete Subject
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default SubjectView;

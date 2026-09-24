@@ -1,0 +1,115 @@
+/* Resources Page Styles */
+.resources-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.resources-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.res-tab-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.res-tab-btn:hover {
+  border-color: var(--border-medium);
+  color: var(--text-primary);
+}
+
+.res-tab-btn.active {
+  background: linear-gradient(135deg, #635bff 0%, #7c3aed 100%);
+  color: white;
+  border-color: transparent;
+}
+
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.resource-card {
+  padding: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resource-card:hover {
+  border-color: var(--primary-500);
+  box-shadow: var(--shadow-md);
+}
+
+.resource-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.res-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-green { color: #10b981; }
+.icon-purple { color: #a855f7; }
+.icon-blue { color: #3b82f6; }
+.icon-orange { color: #f59e0b; }
+.icon-pink { color: #ec4899; }
+.icon-teal { color: #14b8a6; }
+
+.res-badges {
+  display: flex;
+  gap: 6px;
+}
+
+.res-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.res-desc {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  flex: 1;
+}
+
+.res-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  color: #8f66ff;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.ext-link-icon {
+  color: #8f66ff;
+}

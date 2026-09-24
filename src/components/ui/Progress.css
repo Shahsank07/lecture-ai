@@ -1,0 +1,17 @@
+.progress {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-sm { height: 4px; }
+.progress-base { height: 6px; }
+.progress-lg { height: 10px; }
+
+.progress-bar {
+  height: 100%;
+  background: var(--primary-600);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow) ease-out;
+}
