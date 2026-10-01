@@ -1,5 +1,5 @@
+import { supabase } from './supabaseClient';
 import { getUserByEmail, saveUser } from './db';
-import { generateId } from './utils/helpers';
 
 // Default seeded demo accounts matching the screenshots
 export const DEMO_FACULTY = {
@@ -31,16 +31,32 @@ export const DEMO_STUDENT = {
   progressPercentage: 75
 };
 
-// Seed demo users into storage on initial load
+// Seed demo users into Auth and Profiles
 async function ensureDemoUsers() {
   try {
-    const existingFaculty = await getUserByEmail(DEMO_FACULTY.email);
-    if (!existingFaculty) {
-      await saveUser({ ...DEMO_FACULTY, password: 'password123' });
-    }
-    const existingStudent = await getUserByEmail(DEMO_STUDENT.email);
-    if (!existingStudent) {
-      await saveUser({ ...DEMO_STUDENT, password: 'password123' });
+    const demos = [DEMO_FACULTY, DEMO_STUDENT];
+    
+    for (const demo of demos) {
+      // 1. Try to sign up demo user in auth
+      const { data, error } = await supabase.auth.signUp({
+        email: demo.email,
+        password: 'password123',
+        options: {
+          data: {
+            name: demo.name,
+            role: demo.role
+          }
+        }
+      });
+      
+      // We ignore error here since it likely just means user already exists
+      
+      // 2. Ensure profile exists and has full demo data
+      // (The trigger handles basic profile creation, but we want full data)
+      const existingProfile = await getUserByEmail(demo.email);
+      if (existingProfile) {
+        await saveUser({ ...existingProfile, ...demo });
+      }
     }
   } catch (err) {
     console.warn('Could not preseed demo accounts in DB:', err);
@@ -48,17 +64,11 @@ async function ensureDemoUsers() {
 }
 ensureDemoUsers();
 
-// Simple session management using localStorage
 export function getCurrentUser() {
-  const user = localStorage.getItem('vn_user');
-  if (!user) return null;
+  const userStr = localStorage.getItem('vn_user');
+  if (!userStr) return null;
   try {
-    const parsed = JSON.parse(user);
-    if (!parsed) return null;
-    if (!parsed.role) {
-      parsed.role = (parsed.email && parsed.email.includes('student')) ? 'student' : 'faculty';
-    }
-    return parsed;
+    return JSON.parse(userStr);
   } catch {
     return null;
   }
@@ -75,34 +85,46 @@ export function setCurrentUser(user) {
 export async function login(email, password) {
   const cleanEmail = (email || '').trim().toLowerCase();
 
-  // Fast path for demo accounts
+  // Fast path for demo accounts - still use supabase auth under the hood if possible
   if (cleanEmail === DEMO_FACULTY.email.toLowerCase()) {
-    setCurrentUser(DEMO_FACULTY);
-    return DEMO_FACULTY;
+    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: 'password123' });
+    if (!error) {
+      const user = await getUserByEmail(cleanEmail) || DEMO_FACULTY;
+      setCurrentUser(user);
+      return user;
+    }
   }
   if (cleanEmail === DEMO_STUDENT.email.toLowerCase()) {
-    setCurrentUser(DEMO_STUDENT);
-    return DEMO_STUDENT;
+    const { data, error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password: 'password123' });
+    if (!error) {
+      const user = await getUserByEmail(cleanEmail) || DEMO_STUDENT;
+      setCurrentUser(user);
+      return user;
+    }
   }
 
-  const user = await getUserByEmail(cleanEmail);
-  if (!user) {
-    throw new Error('No account found with this email. Please register or use Quick Demo.');
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: cleanEmail,
+    password
+  });
+
+  if (error) {
+    throw new Error('Invalid credentials. Please try again.');
   }
 
-  if (user.password && user.password !== password) {
-    throw new Error('Invalid password. Please try again.');
+  // Fetch complete profile from public.profiles
+  const userProfile = await getUserByEmail(cleanEmail);
+  if (!userProfile) {
+    throw new Error('Profile not found.');
   }
 
-  const { password: _, ...userSafe } = user;
-  setCurrentUser(userSafe);
-  return userSafe;
+  setCurrentUser(userProfile);
+  return userProfile;
 }
 
 export async function loginAsDemo(role = 'faculty') {
-  const user = role === 'faculty' ? DEMO_FACULTY : DEMO_STUDENT;
-  setCurrentUser(user);
-  return user;
+  const demoUser = role === 'faculty' ? DEMO_FACULTY : DEMO_STUDENT;
+  return await login(demoUser.email, 'password123');
 }
 
 export async function signup(userData) {
@@ -119,16 +141,32 @@ export async function signup(userData) {
   }
 
   const cleanEmail = (details.email || '').trim().toLowerCase();
-  const existing = await getUserByEmail(cleanEmail);
-  if (existing) {
-    throw new Error('An account with this email already exists');
-  }
-
-  const newUser = {
-    id: generateId(),
-    name: details.name || 'User',
+  
+  const { data, error } = await supabase.auth.signUp({
     email: cleanEmail,
     password: details.password || 'password123',
+    options: {
+      data: {
+        name: details.name || 'User',
+        role: details.role || 'student'
+      }
+    }
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Error signing up');
+  }
+  
+  const user = data.user;
+  if (!user) {
+    throw new Error('Signup failed');
+  }
+
+  // Allow trigger time to run, then update with extra info
+  const newUserProfile = {
+    id: user.id,
+    name: details.name || 'User',
+    email: cleanEmail,
     role: details.role || 'student',
     institution: details.institution || 'University',
     department: details.department || 'Computer Science',
@@ -136,17 +174,42 @@ export async function signup(userData) {
     semester: details.semester || '6th Semester',
     phone: details.phone || '',
     avatar: details.role === 'faculty' ? DEMO_FACULTY.avatar : DEMO_STUDENT.avatar,
-    createdAt: new Date().toISOString()
   };
+  
+  // Wait brief moment for trigger to insert row, then update
+  await new Promise(r => setTimeout(r, 1000));
+  await saveUser(newUserProfile);
 
-  await saveUser(newUser);
-
-  const { password: _, ...userSafe } = newUser;
-  setCurrentUser(userSafe);
-  return userSafe;
+  setCurrentUser(newUserProfile);
+  
+  // Send welcome email via our backend
+  try {
+    fetch('/api/email/welcome', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: cleanEmail, name: newUserProfile.name })
+    });
+  } catch (e) {
+    console.error("Failed to send welcome email", e);
+  }
+  
+  return newUserProfile;
 }
 
-export function logout() {
+export async function logout() {
+  await supabase.auth.signOut();
   setCurrentUser(null);
   window.location.reload();
 }
+
+// Setup auth state listener
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') {
+    setCurrentUser(null);
+  } else if (event === 'SIGNED_IN' && session) {
+    const userProfile = await getUserByEmail(session.user.email);
+    if (userProfile) {
+      setCurrentUser(userProfile);
+    }
+  }
+});

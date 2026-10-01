@@ -1,165 +1,408 @@
-/* IndexedDB wrapper for VoiceNotes AI */
-import { openDB } from 'idb';
+import { supabase } from './supabaseClient';
 
-const DB_NAME = 'voicenotes-ai';
-const DB_VERSION = 4;
-
-let dbPromise = null;
-
-function getDB() {
-  if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db, oldVersion) {
-        // Subjects store
-        if (!db.objectStoreNames.contains('subjects')) {
-          const subjectStore = db.createObjectStore('subjects', { keyPath: 'id' });
-          subjectStore.createIndex('createdAt', 'createdAt');
-          subjectStore.createIndex('userId', 'userId');
-        }
-        // Schedules store
-        if (!db.objectStoreNames.contains('schedules')) {
-          const scheduleStore = db.createObjectStore('schedules', { keyPath: 'id' });
-          scheduleStore.createIndex('scheduledDate', 'scheduledDate');
-        }
-        // Classes store
-        if (!db.objectStoreNames.contains('classes')) {
-          const classStore = db.createObjectStore('classes', { keyPath: 'id' });
-          classStore.createIndex('subjectId', 'subjectId');
-          classStore.createIndex('date', 'date');
-        }
-        // Users store
-        if (!db.objectStoreNames.contains('users')) {
-          const userStore = db.createObjectStore('users', { keyPath: 'id' });
-          userStore.createIndex('email', 'email', { unique: true });
-        }
-        // Resources store
-        if (!db.objectStoreNames.contains('resources')) {
-          db.createObjectStore('resources', { keyPath: 'id' });
-        }
-      },
-    });
-  }
-  return dbPromise;
-}
-
-// ─── Subjects ────────────────────────────────────────
+// ─── Subjects ─────────────────────────────────────────
 export async function getAllSubjects(userId) {
-  const db = await getDB();
-  const subjects = await db.getAll('subjects');
-  return subjects
-    .filter(s => s.userId === userId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  try {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    // Map snake_case to camelCase
+    return data.map(sub => ({
+      ...sub,
+      userId: sub.user_id,
+      topicPreset: sub.topic_preset,
+      createdAt: sub.created_at
+    }));
+  } catch (err) {
+    console.error('getAllSubjects error:', err);
+    return [];
+  }
 }
 
 export async function getSubject(id) {
-  const db = await getDB();
-  return db.get('subjects', id);
+  try {
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return {
+      ...data,
+      userId: data.user_id,
+      topicPreset: data.topic_preset,
+      createdAt: data.created_at
+    };
+  } catch (err) {
+    console.error('getSubject error:', err);
+    return null;
+  }
 }
 
 export async function saveSubject(subject) {
-  const db = await getDB();
-  return db.put('subjects', subject);
+  try {
+    const payload = {
+      id: subject.id,
+      user_id: subject.userId,
+      name: subject.name,
+      emoji: subject.emoji,
+      topic_preset: subject.topicPreset,
+      gradient: subject.gradient,
+      color: subject.color,
+      created_at: subject.createdAt || new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from('subjects')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+    if (error) throw error;
+    return { ...data, userId: data.user_id, topicPreset: data.topic_preset, createdAt: data.created_at };
+  } catch (err) {
+    console.error('saveSubject error:', err);
+    return null;
+  }
 }
 
 export async function deleteSubject(id) {
-  const db = await getDB();
-  const classes = await getClassesBySubject(id);
-  const tx = db.transaction('classes', 'readwrite');
-  for (const cls of classes) {
-    await tx.store.delete(cls.id);
+  try {
+    const { error } = await supabase.from('subjects').delete().eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    console.error('deleteSubject error:', err);
   }
-  await tx.done;
-  return db.delete('subjects', id);
 }
 
-// ─── Classes ─────────────────────────────────────────
+// ─── Classes ──────────────────────────────────────────
 export async function getClassesBySubject(subjectId) {
-  const db = await getDB();
-  const index = db.transaction('classes').store.index('subjectId');
-  const classes = await index.getAll(subjectId);
-  return classes.sort((a, b) => new Date(b.date) - new Date(a.date));
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*')
+      .eq('subject_id', subjectId)
+      .order('date', { ascending: false });
+    if (error) throw error;
+    return data.map(cls => ({
+      ...cls,
+      subjectId: cls.subject_id,
+      audioUrl: cls.audio_url,
+      createdAt: cls.created_at
+    }));
+  } catch (err) {
+    console.error('getClassesBySubject error:', err);
+    return [];
+  }
 }
 
 export async function getClass(id) {
-  const db = await getDB();
-  return db.get('classes', id);
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return {
+      ...data,
+      subjectId: data.subject_id,
+      audioUrl: data.audio_url,
+      createdAt: data.created_at
+    };
+  } catch (err) {
+    console.error('getClass error:', err);
+    return null;
+  }
 }
 
 export async function saveClass(cls) {
-  const db = await getDB();
-  return db.put('classes', cls);
+  try {
+    let audioUrl = cls.audioUrl || cls.audio_url;
+
+    if (cls.audioBlob && cls.audioBlob instanceof Blob) {
+      const fileName = `audio-${cls.id}-${Date.now()}.webm`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('audio-recordings')
+        .upload(fileName, cls.audioBlob, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (uploadError) {
+        console.error('Audio upload error:', uploadError);
+      } else if (uploadData) {
+        const { data: publicUrlData } = supabase.storage
+          .from('audio-recordings')
+          .getPublicUrl(fileName);
+        audioUrl = publicUrlData.publicUrl;
+      }
+    }
+
+    const payload = {
+      id: cls.id,
+      subject_id: cls.subjectId,
+      title: cls.title,
+      date: cls.date,
+      duration: cls.duration,
+      status: cls.status,
+      transcript: cls.transcript,
+      notes: cls.notes || [],
+      summary: cls.summary || {},
+      flashcards: cls.flashcards || [],
+      audio_url: audioUrl,
+      created_at: cls.createdAt || new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from('classes')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // If it's a new class or status just changed to complete, trigger email if there's students
+    // We could do this securely on the backend, but we'll do a simple fetch here for the frontend integration
+    if (cls.status === 'completed' && cls.title) {
+       // Optional: Fire and forget email notification
+       try {
+         fetch('/api/email/class-notification', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ 
+             classTitle: cls.title, 
+             subjectId: cls.subjectId
+           })
+         });
+       } catch (e) {
+         // ignore
+       }
+    }
+    
+    return { ...data, subjectId: data.subject_id, audioUrl: data.audio_url, createdAt: data.created_at };
+  } catch (err) {
+    console.error('saveClass error:', err);
+    return null;
+  }
 }
 
 export async function deleteClass(id) {
-  const db = await getDB();
-  return db.delete('classes', id);
+  try {
+    const { error } = await supabase.from('classes').delete().eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    console.error('deleteClass error:', err);
+  }
 }
 
 export async function getClassCount(subjectId) {
-  const db = await getDB();
-  const index = db.transaction('classes').store.index('subjectId');
-  const classes = await index.getAll(subjectId);
-  return classes.length;
+  try {
+    const { count, error } = await supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('subject_id', subjectId);
+    if (error) throw error;
+    return count || 0;
+  } catch (err) {
+    console.error('getClassCount error:', err);
+    return 0;
+  }
+}
+
+export async function getAllClasses() {
+  try {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('*')
+      .order('date', { ascending: false });
+    if (error) throw error;
+    return data.map(cls => ({
+      ...cls,
+      subjectId: cls.subject_id,
+      audioUrl: cls.audio_url,
+      createdAt: cls.created_at
+    }));
+  } catch (err) {
+    console.error('getAllClasses error:', err);
+    return [];
+  }
 }
 
 // ─── Users ──────────────────────────────────────────
 export async function saveUser(user) {
-  const db = await getDB();
-  return db.put('users', user);
+  try {
+    const payload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      institution: user.institution,
+      department: user.department,
+      subject: user.subject,
+      semester: user.semester,
+      phone: user.phone,
+      avatar: user.avatar,
+      classes_count: user.classesCount || 0,
+      students_count: user.studentsCount || 0,
+      enrolled_classes_count: user.enrolledClassesCount || 0,
+      progress_percentage: user.progressPercentage || 0,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+    if (error) throw error;
+    
+    return {
+      ...data,
+      classesCount: data.classes_count,
+      studentsCount: data.students_count,
+      enrolledClassesCount: data.enrolled_classes_count,
+      progressPercentage: data.progress_percentage
+    };
+  } catch (err) {
+    console.error('saveUser error:', err);
+    return null;
+  }
 }
 
 export async function getUserByEmail(email) {
-  const db = await getDB();
-  return db.getFromIndex('users', 'email', email);
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      ...data,
+      classesCount: data.classes_count,
+      studentsCount: data.students_count,
+      enrolledClassesCount: data.enrolled_classes_count,
+      progressPercentage: data.progress_percentage
+    };
+  } catch (err) {
+    console.error('getUserByEmail error:', err);
+    return null;
+  }
 }
 
 // ─── Schedules ───────────────────────────────────────
 export async function getSchedules() {
-  const db = await getDB();
-  const schedules = await db.getAll('schedules');
-  return schedules.sort((a, b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+  try {
+    const { data, error } = await supabase
+      .from('schedules')
+      .select('*')
+      .order('scheduled_date', { ascending: true });
+    if (error) throw error;
+    return data.map(s => ({
+      ...s,
+      userId: s.user_id,
+      subjectId: s.subject_id,
+      scheduledDate: s.scheduled_date,
+      createdAt: s.created_at
+    }));
+  } catch (err) {
+    console.error('getSchedules error:', err);
+    return [];
+  }
 }
 
 export async function saveSchedule(schedule) {
-  const db = await getDB();
-  return db.put('schedules', schedule);
+  try {
+    const payload = {
+      id: schedule.id,
+      user_id: schedule.userId,
+      title: schedule.title,
+      subject_id: schedule.subjectId,
+      scheduled_date: schedule.scheduledDate,
+      created_at: schedule.createdAt || new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from('schedules')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+    if (error) throw error;
+    return { ...data, userId: data.user_id, subjectId: data.subject_id, scheduledDate: data.scheduled_date, createdAt: data.created_at };
+  } catch (err) {
+    console.error('saveSchedule error:', err);
+    return null;
+  }
 }
 
 export async function deleteSchedule(id) {
-  const db = await getDB();
-  return db.delete('schedules', id);
-}
-
-export async function getAllClasses() {
-  const db = await getDB();
-  const classes = await db.getAll('classes');
-  return classes.sort((a, b) => new Date(b.date) - new Date(a.date));
+  try {
+    const { error } = await supabase.from('schedules').delete().eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    console.error('deleteSchedule error:', err);
+  }
 }
 
 // ─── Resources ───────────────────────────────────────
 export async function getAllSavedResources() {
-  const db = await getDB();
-  return db.getAll('resources');
+  try {
+    const { data, error } = await supabase
+      .from('resources')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data.map(r => ({
+      ...r,
+      userId: r.user_id,
+      createdAt: r.created_at
+    }));
+  } catch (err) {
+    console.error('getAllSavedResources error:', err);
+    return [];
+  }
 }
 
 export async function saveResource(resource) {
-  const db = await getDB();
-  return db.put('resources', resource);
+  try {
+    const payload = {
+      id: resource.id,
+      user_id: resource.userId,
+      title: resource.title,
+      type: resource.type,
+      url: resource.url,
+      content: resource.content,
+      created_at: resource.createdAt || new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from('resources')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+    if (error) throw error;
+    return { ...data, userId: data.user_id, createdAt: data.created_at };
+  } catch (err) {
+    console.error('saveResource error:', err);
+    return null;
+  }
 }
 
 export async function deleteSavedResource(id) {
-  const db = await getDB();
-  return db.delete('resources', id);
+  try {
+    const { error } = await supabase.from('resources').delete().eq('id', id);
+    if (error) throw error;
+  } catch (err) {
+    console.error('deleteSavedResource error:', err);
+  }
 }
 
 export async function seedDefaultSubjectsAndClasses(userId) {
-  const db = await getDB();
   const existing = await getAllSubjects(userId);
   if (existing && existing.length > 0) return existing;
 
   const defaultSubs = [
     {
-      id: 'sub-dsa',
+      id: 'sub-dsa-' + userId,
       userId,
       name: 'Data Structures',
       emoji: '🌳',
@@ -169,7 +412,7 @@ export async function seedDefaultSubjectsAndClasses(userId) {
       createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
     },
     {
-      id: 'sub-dbms',
+      id: 'sub-dbms-' + userId,
       userId,
       name: 'Database Management Systems',
       emoji: '🗄️',
@@ -179,7 +422,7 @@ export async function seedDefaultSubjectsAndClasses(userId) {
       createdAt: new Date(Date.now() - 86400000 * 4).toISOString()
     },
     {
-      id: 'sub-os',
+      id: 'sub-os-' + userId,
       userId,
       name: 'Operating Systems',
       emoji: '💻',
@@ -197,8 +440,8 @@ export async function seedDefaultSubjectsAndClasses(userId) {
   // Sample classes with AI summaries
   const sampleClasses = [
     {
-      id: 'cls-dbms-norm',
-      subjectId: 'sub-dbms',
+      id: 'cls-dbms-norm-' + userId,
+      subjectId: 'sub-dbms-' + userId,
       title: 'Database Normalization (1NF to 3NF)',
       date: new Date(Date.now() - 86400000).toISOString(),
       duration: 2720,
@@ -230,8 +473,8 @@ export async function seedDefaultSubjectsAndClasses(userId) {
       ]
     },
     {
-      id: 'cls-dsa-trees',
-      subjectId: 'sub-dsa',
+      id: 'cls-dsa-trees-' + userId,
+      subjectId: 'sub-dsa-' + userId,
       title: 'Stacks and Queues',
       date: new Date(Date.now() - 86400000 * 2).toISOString(),
       duration: 2295,

@@ -12,6 +12,9 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 import { readFileSync } from 'fs';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -86,60 +89,76 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Authentication endpoints
-app.post('/api/auth/signup', async (req, res) => {
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Email endpoints
+app.post('/api/email/welcome', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
-    }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
-    }
-    if (users.has(email)) {
-      return res.status(409).json({ error: 'Email already registered' });
+    const { email, name } = req.body;
+    if (!email || !name) {
+      return res.status(400).json({ error: 'Email and name are required' });
     }
 
-    const { hash, salt } = await hashPassword(password);
-    const user = {
-      id: crypto.randomUUID(),
-      name,
-      email,
-      passwordHash: hash,
-      passwordSalt: salt,
-      createdAt: new Date().toISOString()
-    };
-    users.set(email, user);
+    const { data, error } = await resend.emails.send({
+      from: 'LectureAI <onboarding@resend.dev>', // Using Resend test domain
+      to: email,
+      subject: 'Welcome to LectureAI',
+      html: `
+        <h1>Welcome to LectureAI, ${name}!</h1>
+        <p>We're thrilled to have you on board. With LectureAI, you can record lectures, get AI-powered summaries, and generate flashcards instantly.</p>
+        <br>
+        <p>Best,<br>The LectureAI Team</p>
+      `
+    });
 
-    const { passwordHash, passwordSalt, ...userSafe } = user;
-    res.status(201).json(userSafe);
+    if (error) {
+      console.error('Resend error:', error);
+      return res.status(400).json({ error });
+    }
+
+    res.status(200).json({ data });
   } catch (err) {
-    console.error('Signup error:', err);
+    console.error('Welcome email error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/email/class-notification', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    const { classTitle, subjectId, recipientEmails } = req.body;
+    if (!classTitle) {
+      return res.status(400).json({ error: 'Class title is required' });
     }
 
-    const user = users.get(email);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    // In a real app, you would fetch students enrolled in subjectId
+    // Here we'll just use the provided emails or a default
+    const toEmails = recipientEmails && recipientEmails.length > 0 
+      ? recipientEmails 
+      : ['delivered@resend.dev'];
+
+    const { data, error } = await resend.emails.send({
+      from: 'LectureAI <notifications@resend.dev>', // Using Resend test domain
+      to: toEmails,
+      subject: `New Lecture Available: ${classTitle}`,
+      html: `
+        <h2>A new lecture has been published!</h2>
+        <p>The recording and AI notes for <strong>${classTitle}</strong> are now available.</p>
+        <p>Log in to your dashboard to review the summary, read the transcript, and practice with flashcards.</p>
+        <br>
+        <p>Best,<br>The LectureAI Team</p>
+      `
+    });
+
+    if (error) {
+      console.error('Resend error:', error);
+      return res.status(400).json({ error });
     }
 
-    const valid = await verifyPassword(password, user.passwordHash, user.passwordSalt);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const { passwordHash, passwordSalt, ...userSafe } = user;
-    res.json(userSafe);
+    res.status(200).json({ data });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('Class notification error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
