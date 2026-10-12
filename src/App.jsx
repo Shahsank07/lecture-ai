@@ -17,13 +17,14 @@ import ProgressPage from './components/ProgressPage';
 import FlashcardViewerPage from './components/FlashcardViewerPage';
 import AssignmentsPage from './components/AssignmentsPage';
 import AnnouncementsPage from './components/AnnouncementsPage';
+import ClassesPage from './components/ClassesPage';
 import {
   getAllSubjects, getSubject, getClass, saveSubject, saveClass,
   getAllClasses, seedDefaultSubjectsAndClasses
 } from './db';
 import { getCurrentUser, logout } from './auth';
 import { generateId } from './utils/helpers';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BookOpen, Plus, FolderOpen, Video } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './App.css';
 
@@ -87,7 +88,13 @@ function App() {
     } else if (newView.startsWith('session:') || newView.startsWith('notes:') || newView.startsWith('edit:')) {
       const id = newView.split(':')[1];
       let cls = await getClass(id);
-      if (!cls && user) {
+      const isDemo =
+        user?.id === 'student-arjun-sharma' ||
+        user?.id === 'faculty-alex-johnson' ||
+        user?.email?.toLowerCase().includes('arjun.sharma@university.edu') ||
+        user?.email?.toLowerCase().includes('alex.johnson@university.edu');
+
+      if (!cls && isDemo) {
         await seedDefaultSubjectsAndClasses(user.id);
         cls = await getClass(id);
       }
@@ -318,38 +325,21 @@ function App() {
       if (view === 'quizzes' || view === 'flashcards') {
         return (
           <FlashcardViewerPage
-            currentClass={currentClass || { id: 'sample', title: 'Data Structures Quiz' }}
+            currentClass={currentClass}
+            subjects={subjects}
             initialMode={view === 'quizzes' ? 'quiz' : 'flashcards'}
             onNavigate={navigate}
           />
         );
       }
       if (view === 'notes' || view === 'lectures' || view === 'classes') {
-        const isDemo =
-          user?.id === 'student-arjun-sharma' ||
-          user?.id === 'faculty-alex-johnson' ||
-          user?.email?.toLowerCase().includes('arjun.sharma@university.edu') ||
-          user?.email?.toLowerCase().includes('alex.johnson@university.edu');
-        const targetSub = currentSubject || subjects[0] || (isDemo ? { id: 'sub-dsa', name: 'Data Structures', emoji: '📚', color: '#7C3AED' } : null);
-        if (!targetSub) {
-          return (
-            <div style={{ minHeight: '50vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px 20px', color: '#94A3B8' }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(124, 58, 237, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <BookOpen size={32} color="#7C3AED" />
-              </div>
-              <h2 style={{ fontSize: '20px', color: '#FFFFFF', marginBottom: 8 }}>No Classes Enrolled</h2>
-              <p style={{ fontSize: '14px', color: '#64748B', maxWidth: 420, marginBottom: 20 }}>
-                {user?.role === 'faculty' ? 'Create your first subject to start recording lectures.' : 'You have not enrolled in any classes yet.'}
-              </p>
-            </div>
-          );
-        }
         return (
-          <SubjectView
-            subject={targetSub}
+          <ClassesPage
+            subjects={subjects}
             user={user}
+            viewType={view}
             onNavigate={navigate}
-            onRefresh={refreshSubjects}
+            onCreateClass={() => setShowCreateModal(true)}
           />
         );
       }

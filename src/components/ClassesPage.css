@@ -1,0 +1,373 @@
+.classes-page-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.classes-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.classes-page-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+}
+
+.classes-page-subtitle {
+  font-size: 14px;
+  color: #94A3B8;
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.5;
+}
+
+.btn-create-class-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7C3AED 0%, #6366F1 100%);
+  color: #FFFFFF;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35);
+}
+
+.btn-create-class-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(124, 58, 237, 0.45);
+}
+
+.classes-page-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.classes-tab-pills {
+  display: flex;
+  background: #0E1322;
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 4px;
+}
+
+.tab-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-pill-btn:hover {
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-pill-btn.active {
+  background: rgba(124, 58, 237, 0.2);
+  color: #A855F7;
+  border: 1px solid rgba(124, 58, 237, 0.3);
+}
+
+.classes-search-input-wrap {
+  position: relative;
+  min-width: 280px;
+}
+
+.classes-search-input-wrap .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748B;
+  pointer-events: none;
+}
+
+.classes-search-input-wrap input {
+  width: 100%;
+  background: #0E1322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 9px 16px 9px 40px;
+  border-radius: 12px;
+  color: #FFFFFF;
+  font-size: 13px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.classes-search-input-wrap input:focus {
+  border-color: #7C3AED;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+/* Empty box */
+.empty-classes-box {
+  background: #0E1322;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 60px 24px;
+  text-align: center;
+  max-width: 600px;
+  margin: 20px auto;
+}
+
+.empty-icon-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: rgba(124, 58, 237, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+
+.empty-icon-circle.blue {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.empty-icon-circle.green {
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.empty-classes-box h3 {
+  color: #FFFFFF;
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.empty-classes-box p {
+  color: #94A3B8;
+  font-size: 14px;
+  max-width: 440px;
+  margin: 0 auto 24px;
+  line-height: 1.5;
+}
+
+.btn-create-first-class {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #7C3AED;
+  color: #FFFFFF;
+  border: none;
+  padding: 11px 22px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-create-first-class:hover {
+  background: #6D28D9;
+}
+
+/* Subjects grid */
+.subjects-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* Lectures grid */
+.lectures-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.lecture-item-card {
+  background: #0E1322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.lecture-item-card:hover {
+  border-color: rgba(124, 58, 237, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.lecture-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.lecture-sub-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.status-pill.completed {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.status-pill.recording,
+.status-pill.paused {
+  background: rgba(245, 158, 11, 0.15);
+  color: #F59E0B;
+}
+
+.lecture-card-title {
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 14px 0;
+  line-height: 1.4;
+}
+
+.lecture-meta-row {
+  display: flex;
+  gap: 16px;
+  color: #94A3B8;
+  font-size: 12px;
+  margin-bottom: 18px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lecture-card-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #A855F7;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Notes grid */
+.notes-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.note-item-card {
+  background: #0E1322;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-item-card:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.note-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.note-sub-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: #10B981;
+}
+
+.note-date {
+  font-size: 11px;
+  color: #64748B;
+}
+
+.note-title {
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+}
+
+.note-preview-text {
+  color: #94A3B8;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.note-card-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #34D399;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.note-action-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

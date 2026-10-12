@@ -205,10 +205,10 @@ export async function signup(userData) {
     semester: details.semester || '6th Semester',
     phone: details.phone || '',
     avatar: details.role === 'faculty' ? DEMO_FACULTY.avatar : DEMO_STUDENT.avatar,
-    classesCount: details.role === 'faculty' ? 1 : 0,
-    studentsCount: details.role === 'faculty' ? 40 : 0,
-    enrolledClassesCount: details.role === 'student' ? 4 : 0,
-    progressPercentage: 50
+    classesCount: 0,
+    studentsCount: 0,
+    enrolledClassesCount: 0,
+    progressPercentage: 0
   };
 
   try { await saveUser(newUserProfile); } catch (err) { console.warn('Save profile warning:', err); }
