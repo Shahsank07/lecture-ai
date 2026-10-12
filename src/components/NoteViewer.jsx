@@ -332,9 +332,16 @@ function NoteViewer({ classData = {}, subject = {}, onNavigate }) {
         />
       )}
 
-      <Button variant="ghost" size="sm" onClick={() => onNavigate(subject?.id ? `subject:${subject.id}` : 'dashboard')} leftIcon={<ArrowLeft size={14} />}>
-        Back to {subject?.name || 'Dashboard'}
-      </Button>
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
+        <Button variant="ghost" size="sm" onClick={() => onNavigate('dashboard')} leftIcon={<ArrowLeft size={14} />}>
+          Back to Dashboard
+        </Button>
+        {subject?.id && (
+          <Button variant="ghost" size="sm" onClick={() => onNavigate(`subject:${subject.id}`)}>
+            {subject.name}
+          </Button>
+        )}
+      </div>
 
       {/* Header */}
       <div className="page-header animate-in">

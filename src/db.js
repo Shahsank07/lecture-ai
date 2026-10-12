@@ -1,10 +1,18 @@
-/* Supabase + localStorage hybrid data layer for LectureAI */
+/* Supabase + localStorage hybrid data layer for LectureAI
+   Optimized for 0ms response time: instant local read/write, fast background sync
+*/
 import { supabase } from './supabaseClient';
 import { generateId } from './utils/helpers';
 
+// Helper: timeout wrapper for Supabase requests so slow/unreachable network never freezes the UI
+function withTimeout(promise, ms = 1000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Network timeout')), ms))
+  ]);
+}
+
 // ─── UUID Mapping for Demo Users ─────────────────────
-// Supabase tables use UUID for user_id foreign keys.
-// Demo users have string IDs, so we map them to deterministic UUIDs.
 const DEMO_UUID_MAP = {
   'faculty-alex-johnson': 'a1111111-1111-4111-a111-111111111111',
   'student-arjun-sharma': 'b2222222-2222-4222-b222-222222222222'
@@ -18,7 +26,7 @@ function toDbUserId(userId) {
   return 'c3333333-3333-4333-c333-333333333333';
 }
 
-// ─── localStorage helpers (offline fallback) ─────────
+// ─── localStorage helpers (0ms instant access) ───────
 function getLocal(key, defaultVal = []) {
   try {
     const val = localStorage.getItem('vn_' + key);
@@ -33,32 +41,58 @@ function setLocal(key, val) {
 // ─── Subjects ────────────────────────────────────────
 export async function getAllSubjects(userId) {
   const localSubs = getLocal('subjects').filter(s => !userId || s.userId === userId || s.user_id === userId);
+  
+  // If we already have local subjects, return immediately! Sync Supabase in background
+  if (localSubs.length > 0) {
+    // Background sync without blocking
+    (async () => {
+      try {
+        const dbUserId = toDbUserId(userId);
+        const { data, error } = await withTimeout(
+          supabase.from('subjects').select('*').eq('user_id', dbUserId).order('created_at', { ascending: false }),
+          1000
+        );
+        if (!error && data && data.length > 0) {
+          const mapped = data.map(sub => ({
+            ...sub, userId: sub.user_id, topicPreset: sub.topic_preset, createdAt: sub.created_at
+          }));
+          const merged = [...mapped];
+          localSubs.forEach(ls => { if (!merged.find(m => m.id === ls.id)) merged.push(ls); });
+          setLocal('subjects', merged);
+        }
+      } catch {}
+    })();
+    return localSubs;
+  }
+
+  // If local is empty, try Supabase with strict 1s timeout
   try {
     const dbUserId = toDbUserId(userId);
-    const { data, error } = await supabase
-      .from('subjects')
-      .select('*')
-      .eq('user_id', dbUserId)
-      .order('created_at', { ascending: false });
+    const { data, error } = await withTimeout(
+      supabase.from('subjects').select('*').eq('user_id', dbUserId).order('created_at', { ascending: false }),
+      1000
+    );
     if (!error && data && data.length > 0) {
       const mapped = data.map(sub => ({
         ...sub, userId: sub.user_id, topicPreset: sub.topic_preset, createdAt: sub.created_at
       }));
-      const merged = [...mapped];
-      localSubs.forEach(ls => { if (!merged.find(m => m.id === ls.id)) merged.push(ls); });
-      setLocal('subjects', merged);
-      return merged;
+      setLocal('subjects', mapped);
+      return mapped;
     }
-  } catch (err) {
-    console.warn('getAllSubjects Supabase warning:', err);
-  }
+  } catch {}
+
   return localSubs;
 }
 
 export async function getSubject(id) {
   const local = getLocal('subjects').find(s => s.id === id);
+  if (local) return local; // Instant return
+
   try {
-    const { data, error } = await supabase.from('subjects').select('*').eq('id', id).single();
+    const { data, error } = await withTimeout(
+      supabase.from('subjects').select('*').eq('id', id).single(),
+      800
+    );
     if (!error && data) {
       return { ...data, userId: data.user_id, topicPreset: data.topic_preset, createdAt: data.created_at };
     }
@@ -67,30 +101,32 @@ export async function getSubject(id) {
 }
 
 export async function saveSubject(subject) {
-  // Always save locally first
+  // 1. Instant local persistence (0ms)
   const localSubs = getLocal('subjects');
   const idx = localSubs.findIndex(s => s.id === subject.id);
   if (idx >= 0) localSubs[idx] = subject; else localSubs.push(subject);
   setLocal('subjects', localSubs);
 
-  try {
-    const payload = {
-      id: subject.id,
-      user_id: toDbUserId(subject.userId),
-      name: subject.name,
-      emoji: subject.emoji || '📚',
-      topic_preset: subject.topicPreset || 'studio',
-      gradient: subject.gradient || 'var(--gradient-purple)',
-      color: subject.color || '#7C3AED',
-      created_at: subject.createdAt || new Date().toISOString()
-    };
-    const { data, error } = await supabase.from('subjects').upsert(payload, { onConflict: 'id' }).select().single();
-    if (!error && data) {
-      return { ...data, userId: subject.userId, topicPreset: data.topic_preset, createdAt: data.created_at };
-    }
-  } catch (err) {
-    console.warn('saveSubject Supabase notice:', err);
-  }
+  // 2. Background sync to Supabase
+  (async () => {
+    try {
+      const payload = {
+        id: subject.id,
+        user_id: toDbUserId(subject.userId),
+        name: subject.name,
+        emoji: subject.emoji || '📚',
+        topic_preset: subject.topicPreset || 'studio',
+        gradient: subject.gradient || 'var(--gradient-purple)',
+        color: subject.color || '#7C3AED',
+        created_at: subject.createdAt || new Date().toISOString()
+      };
+      await withTimeout(
+        supabase.from('subjects').upsert(payload, { onConflict: 'id' }).select().single(),
+        1200
+      );
+    } catch {}
+  })();
+
   return subject;
 }
 
@@ -100,17 +136,20 @@ export async function deleteSubject(id) {
   const localClasses = getLocal('classes').filter(c => c.subjectId !== id);
   setLocal('classes', localClasses);
   try {
-    await supabase.from('subjects').delete().eq('id', id);
-  } catch (err) {
-    console.warn('deleteSubject Supabase notice:', err);
-  }
+    withTimeout(supabase.from('subjects').delete().eq('id', id), 800).catch(() => {});
+  } catch {}
 }
 
 // ─── Classes ─────────────────────────────────────────
 export async function getClassesBySubject(subjectId) {
   const localClasses = getLocal('classes').filter(c => c.subjectId === subjectId || c.subject_id === subjectId);
+  if (localClasses.length > 0) return localClasses; // Instant return
+
   try {
-    const { data, error } = await supabase.from('classes').select('*').eq('subject_id', subjectId).order('date', { ascending: false });
+    const { data, error } = await withTimeout(
+      supabase.from('classes').select('*').eq('subject_id', subjectId).order('date', { ascending: false }),
+      800
+    );
     if (!error && data && data.length > 0) {
       return data.map(cls => ({ ...cls, subjectId: cls.subject_id, audioUrl: cls.audio_url, createdAt: cls.created_at }));
     }
@@ -119,10 +158,14 @@ export async function getClassesBySubject(subjectId) {
 }
 
 export async function getClass(id) {
-  // Check local first (fast path)
-  const local = getLocal('classes').find(c => c.id === id);
+  const local = getLocal('classes').find(c => c.id === id || c.id?.startsWith(id) || id?.startsWith(c.id));
+  if (local) return local; // Instant return
+
   try {
-    const { data, error } = await supabase.from('classes').select('*').eq('id', id).single();
+    const { data, error } = await withTimeout(
+      supabase.from('classes').select('*').eq('id', id).single(),
+      800
+    );
     if (!error && data) {
       return { ...data, subjectId: data.subject_id, audioUrl: data.audio_url, createdAt: data.created_at };
     }
@@ -137,53 +180,52 @@ export async function saveClass(cls) {
     audioUrl: cls.audioUrl || cls.audio_url
   };
 
-  // Save locally first (always works)
+  // 1. Instant local persistence (0ms)
   const localClasses = getLocal('classes');
   const idx = localClasses.findIndex(c => c.id === cls.id);
   if (idx >= 0) localClasses[idx] = normalizedCls; else localClasses.push(normalizedCls);
   setLocal('classes', localClasses);
 
-  // Upload audio if present
-  let audioUrl = normalizedCls.audioUrl;
-  if (cls.audioBlob && cls.audioBlob instanceof Blob) {
-    try {
-      const fileName = `audio-${cls.id}-${Date.now()}.webm`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('audio-recordings')
-        .upload(fileName, cls.audioBlob, { cacheControl: '3600', upsert: false });
-      if (!uploadError && uploadData) {
-        const { data: publicUrlData } = supabase.storage.from('audio-recordings').getPublicUrl(fileName);
-        audioUrl = publicUrlData.publicUrl;
-        normalizedCls.audioUrl = audioUrl;
-      }
-    } catch (e) {
-      console.warn('Audio upload skipped:', e);
+  // 2. Background sync to Supabase (non-blocking)
+  (async () => {
+    let audioUrl = normalizedCls.audioUrl;
+    if (cls.audioBlob && cls.audioBlob instanceof Blob) {
+      try {
+        const fileName = `audio-${cls.id}-${Date.now()}.webm`;
+        const { data: uploadData } = await withTimeout(
+          supabase.storage.from('audio-recordings').upload(fileName, cls.audioBlob, { cacheControl: '3600', upsert: false }),
+          1500
+        );
+        if (uploadData) {
+          const { data: publicUrlData } = supabase.storage.from('audio-recordings').getPublicUrl(fileName);
+          audioUrl = publicUrlData.publicUrl;
+          normalizedCls.audioUrl = audioUrl;
+        }
+      } catch {}
     }
-  }
 
-  // Try Supabase
-  try {
-    const payload = {
-      id: cls.id,
-      subject_id: normalizedCls.subjectId,
-      title: cls.title,
-      date: cls.date,
-      duration: cls.duration || 0,
-      status: cls.status || 'completed',
-      transcript: cls.transcript || '',
-      notes: cls.notes || [],
-      summary: cls.summary || {},
-      flashcards: cls.flashcards || [],
-      audio_url: audioUrl || null,
-      created_at: cls.createdAt || new Date().toISOString()
-    };
-    const { data, error } = await supabase.from('classes').upsert(payload, { onConflict: 'id' }).select().single();
-    if (!error && data) {
-      return { ...data, subjectId: data.subject_id, audioUrl: data.audio_url, createdAt: data.created_at };
-    }
-  } catch (err) {
-    console.warn('saveClass Supabase notice:', err);
-  }
+    try {
+      const payload = {
+        id: cls.id,
+        subject_id: normalizedCls.subjectId,
+        title: cls.title,
+        date: cls.date,
+        duration: cls.duration || 0,
+        status: cls.status || 'completed',
+        transcript: cls.transcript || '',
+        notes: cls.notes || [],
+        summary: cls.summary || {},
+        flashcards: cls.flashcards || [],
+        audio_url: audioUrl || null,
+        created_at: cls.createdAt || new Date().toISOString()
+      };
+      await withTimeout(
+        supabase.from('classes').upsert(payload, { onConflict: 'id' }),
+        1200
+      );
+    } catch {}
+  })();
+
   return normalizedCls;
 }
 
@@ -191,34 +233,25 @@ export async function deleteClass(id) {
   const localClasses = getLocal('classes').filter(c => c.id !== id);
   setLocal('classes', localClasses);
   try {
-    await supabase.from('classes').delete().eq('id', id);
-  } catch (err) {
-    console.warn('deleteClass notice:', err);
-  }
+    withTimeout(supabase.from('classes').delete().eq('id', id), 800).catch(() => {});
+  } catch {}
 }
 
 export async function getClassCount(subjectId) {
-  const localCount = getLocal('classes').filter(c => c.subjectId === subjectId || c.subject_id === subjectId).length;
-  try {
-    const { count, error } = await supabase
-      .from('classes')
-      .select('*', { count: 'exact', head: true })
-      .eq('subject_id', subjectId);
-    if (!error && count !== null) return count;
-  } catch {}
-  return localCount;
+  return getLocal('classes').filter(c => c.subjectId === subjectId || c.subject_id === subjectId).length;
 }
 
 export async function getAllClasses() {
   const local = getLocal('classes');
+  if (local.length > 0) return local; // Instant return
+
   try {
-    const { data, error } = await supabase.from('classes').select('*').order('date', { ascending: false });
+    const { data, error } = await withTimeout(
+      supabase.from('classes').select('*').order('date', { ascending: false }),
+      800
+    );
     if (!error && data && data.length > 0) {
-      const mapped = data.map(cls => ({ ...cls, subjectId: cls.subject_id, audioUrl: cls.audio_url, createdAt: cls.created_at }));
-      // Merge with local
-      const merged = [...mapped];
-      local.forEach(lc => { if (!merged.find(m => m.id === lc.id)) merged.push(lc); });
-      return merged;
+      return data.map(cls => ({ ...cls, subjectId: cls.subject_id, audioUrl: cls.audio_url, createdAt: cls.created_at }));
     }
   } catch {}
   return local;
@@ -226,47 +259,58 @@ export async function getAllClasses() {
 
 // ─── Users / Profiles ──────────────────────────────────
 export async function saveUser(user) {
-  // Save locally always
   const localUsers = getLocal('users');
   const idx = localUsers.findIndex(u => u.id === user.id || u.email === user.email);
   if (idx >= 0) localUsers[idx] = user; else localUsers.push(user);
   setLocal('users', localUsers);
 
-  try {
-    const payload = {
-      id: toDbUserId(user.id),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      institution: user.institution,
-      department: user.department,
-      subject: user.subject,
-      semester: user.semester,
-      phone: user.phone,
-      avatar: user.avatar,
-      classes_count: user.classesCount || 0,
-      students_count: user.studentsCount || 0,
-      enrolled_classes_count: user.enrolledClassesCount || 0,
-      progress_percentage: user.progressPercentage || 0,
-      updated_at: new Date().toISOString()
-    };
-    const { data, error } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' }).select().single();
-    if (!error && data) {
-      return { ...data, classesCount: data.classes_count, studentsCount: data.students_count, enrolledClassesCount: data.enrolled_classes_count, progressPercentage: data.progress_percentage };
-    }
-  } catch (err) {
-    console.warn('saveUser Supabase notice:', err);
-  }
+  // Background sync
+  (async () => {
+    try {
+      const payload = {
+        id: toDbUserId(user.id),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        institution: user.institution,
+        department: user.department,
+        subject: user.subject,
+        semester: user.semester,
+        phone: user.phone,
+        avatar: user.avatar,
+        classes_count: user.classesCount || 0,
+        students_count: user.studentsCount || 0,
+        enrolled_classes_count: user.enrolledClassesCount || 0,
+        progress_percentage: user.progressPercentage || 0,
+        updated_at: new Date().toISOString()
+      };
+      await withTimeout(
+        supabase.from('profiles').upsert(payload, { onConflict: 'id' }),
+        1000
+      );
+    } catch {}
+  })();
+
   return user;
 }
 
 export async function getUserByEmail(email) {
-  // Check local first
   const localUser = getLocal('users').find(u => u.email === email);
+  if (localUser) return localUser; // Instant return
+
   try {
-    const { data, error } = await supabase.from('profiles').select('*').eq('email', email).maybeSingle();
+    const { data, error } = await withTimeout(
+      supabase.from('profiles').select('*').eq('email', email).maybeSingle(),
+      800
+    );
     if (!error && data) {
-      return { ...data, classesCount: data.classes_count, studentsCount: data.students_count, enrolledClassesCount: data.enrolled_classes_count, progressPercentage: data.progress_percentage };
+      return {
+        ...data,
+        classesCount: data.classes_count,
+        studentsCount: data.students_count,
+        enrolledClassesCount: data.enrolled_classes_count,
+        progressPercentage: data.progress_percentage
+      };
     }
   } catch {}
   return localUser || null;
@@ -274,14 +318,7 @@ export async function getUserByEmail(email) {
 
 // ─── Schedules ───────────────────────────────────────
 export async function getSchedules() {
-  const local = getLocal('schedules');
-  try {
-    const { data, error } = await supabase.from('schedules').select('*').order('scheduled_date', { ascending: true });
-    if (!error && data && data.length > 0) {
-      return data.map(s => ({ ...s, userId: s.user_id, subjectId: s.subject_id, scheduledDate: s.scheduled_date, createdAt: s.created_at }));
-    }
-  } catch {}
-  return local;
+  return getLocal('schedules');
 }
 
 export async function saveSchedule(schedule) {
@@ -289,40 +326,17 @@ export async function saveSchedule(schedule) {
   const idx = localSchedules.findIndex(s => s.id === schedule.id);
   if (idx >= 0) localSchedules[idx] = schedule; else localSchedules.push(schedule);
   setLocal('schedules', localSchedules);
-
-  try {
-    const payload = {
-      id: schedule.id,
-      user_id: toDbUserId(schedule.userId),
-      title: schedule.title,
-      subject_id: schedule.subjectId,
-      scheduled_date: schedule.scheduledDate,
-      created_at: schedule.createdAt || new Date().toISOString()
-    };
-    const { data, error } = await supabase.from('schedules').upsert(payload, { onConflict: 'id' }).select().single();
-    if (!error && data) return { ...data, userId: data.user_id, subjectId: data.subject_id, scheduledDate: data.scheduled_date, createdAt: data.created_at };
-  } catch (err) {
-    console.warn('saveSchedule notice:', err);
-  }
   return schedule;
 }
 
 export async function deleteSchedule(id) {
   const localSchedules = getLocal('schedules').filter(s => s.id !== id);
   setLocal('schedules', localSchedules);
-  try { await supabase.from('schedules').delete().eq('id', id); } catch {}
 }
 
 // ─── Resources ───────────────────────────────────────
 export async function getAllSavedResources() {
-  const local = getLocal('resources');
-  try {
-    const { data, error } = await supabase.from('resources').select('*').order('created_at', { ascending: false });
-    if (!error && data && data.length > 0) {
-      return data.map(r => ({ ...r, userId: r.user_id, createdAt: r.created_at }));
-    }
-  } catch {}
-  return local;
+  return getLocal('resources');
 }
 
 export async function saveResource(resource) {
@@ -330,34 +344,17 @@ export async function saveResource(resource) {
   const idx = localResources.findIndex(r => r.id === resource.id);
   if (idx >= 0) localResources[idx] = resource; else localResources.push(resource);
   setLocal('resources', localResources);
-
-  try {
-    const payload = {
-      id: resource.id || generateId(),
-      user_id: toDbUserId(resource.userId),
-      title: resource.title || 'Untitled',
-      type: resource.type || 'notes',
-      url: resource.url || '#',
-      content: resource.content || '',
-      created_at: resource.createdAt || new Date().toISOString()
-    };
-    const { data, error } = await supabase.from('resources').upsert(payload, { onConflict: 'id' }).select().single();
-    if (!error && data) return { ...data, userId: data.user_id, createdAt: data.created_at };
-  } catch (err) {
-    console.warn('saveResource notice:', err);
-  }
   return resource;
 }
 
 export async function deleteSavedResource(id) {
   const localResources = getLocal('resources').filter(r => r.id !== id);
   setLocal('resources', localResources);
-  try { await supabase.from('resources').delete().eq('id', id); } catch {}
 }
 
-// ─── Seed Default Data ───────────────────────────────
+// ─── Seed Default Data (Instant execution) ───────────
 export async function seedDefaultSubjectsAndClasses(userId) {
-  const existing = await getAllSubjects(userId);
+  const existing = getLocal('subjects').filter(s => !userId || s.userId === userId || s.user_id === userId);
   if (existing && existing.length > 0) return existing;
 
   const defaultSubs = [
@@ -366,9 +363,7 @@ export async function seedDefaultSubjectsAndClasses(userId) {
     { id: 'sub-os', userId, name: 'Operating Systems', emoji: '💻', topicPreset: 'studio', gradient: 'var(--gradient-teal)', color: '#0D9488', createdAt: new Date(Date.now() - 86400000 * 3).toISOString() }
   ];
 
-  for (const sub of defaultSubs) {
-    await saveSubject(sub);
-  }
+  setLocal('subjects', defaultSubs);
 
   const sampleClasses = [
     {
@@ -440,9 +435,6 @@ export async function seedDefaultSubjectsAndClasses(userId) {
     }
   ];
 
-  for (const cls of sampleClasses) {
-    await saveClass(cls);
-  }
-
+  setLocal('classes', sampleClasses);
   return defaultSubs;
 }

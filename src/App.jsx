@@ -54,16 +54,31 @@ function App() {
   }, [loadSubjects]);
 
   const navigate = useCallback(async (newView) => {
+    // Immediately set view for 0ms instant UI response
+    setView(newView);
+
     if (newView === 'live-lecture') {
       await handleQuickStartRecording();
       return;
     }
+
+    if (newView === 'dashboard') {
+      setCurrentSubject(null);
+      setCurrentClass(null);
+      loadSubjects().catch(() => {});
+      return;
+    }
+
     if (newView.startsWith('subject:')) {
       const id = newView.split(':')[1];
-      let sub = await getSubject(id);
-      if (!sub) sub = subjects.find(s => s.id === id);
-      setCurrentSubject(sub || subjects[0] || { id, name: 'Subject', emoji: '📚', color: '#7C3AED' });
-      setView(newView);
+      let sub = subjects.find(s => s.id === id);
+      if (sub) {
+        setCurrentSubject(sub);
+      } else {
+        getSubject(id).then(loaded => {
+          if (loaded) setCurrentSubject(loaded);
+        }).catch(() => {});
+      }
     } else if (newView.startsWith('session:') || newView.startsWith('notes:') || newView.startsWith('edit:')) {
       const id = newView.split(':')[1];
       let cls = await getClass(id);
@@ -98,14 +113,6 @@ function App() {
       }
       setCurrentSubject(sub || { id: 'default', name: 'General Subject', color: '#7C3AED', emoji: '📚' });
       setCurrentClass(cls);
-      setView(newView);
-    } else if (newView === 'dashboard') {
-      await loadSubjects();
-      setCurrentSubject(null);
-      setCurrentClass(null);
-      setView(newView);
-    } else {
-      setView(newView);
     }
   }, [loadSubjects, subjects, user]);
 
