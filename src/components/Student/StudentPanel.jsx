@@ -6,6 +6,7 @@ import {
   Bell, Play, Download, MoreVertical, Clock, MapPin,
   ChevronRight, ArrowRight, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import NotificationsModal from '../NotificationsModal';
 import './StudentPanel.css';
 
 export default function StudentPanel({
@@ -17,6 +18,7 @@ export default function StudentPanel({
 }) {
   const [activeNav, setActiveNav] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const isDemo =
     user?.id === 'student-arjun-sharma' ||
@@ -166,7 +168,8 @@ export default function StudentPanel({
     setActiveNav(viewId);
     if (onNavigate) {
       if (viewId === 'dashboard') onNavigate('dashboard');
-      else if (viewId === 'classes' || viewId === 'lectures') onNavigate('classes');
+      else if (viewId === 'classes') onNavigate('classes');
+      else if (viewId === 'lectures') onNavigate('lectures');
       else if (viewId === 'notes') onNavigate('notes');
       else if (viewId === 'resources') onNavigate('resources');
       else if (viewId === 'ai-assistant' || viewId === 'messages') onNavigate('ai-assistant');
@@ -327,11 +330,6 @@ export default function StudentPanel({
               </span>
             </div>
           </div>
-
-          <button className="student-logout-btn" onClick={onLogout}>
-            <LogOut size={16} />
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
 
@@ -357,7 +355,11 @@ export default function StudentPanel({
             </div>
 
             {/* Notification bell */}
-            <button className="topbar-icon-btn" title="3 Notifications">
+            <button
+              className="topbar-icon-btn"
+              title="Notifications"
+              onClick={() => setShowNotifications(prev => !prev)}
+            >
               <Bell size={20} />
               <span className="notif-badge">3</span>
             </button>
@@ -738,6 +740,12 @@ export default function StudentPanel({
           </div>
         </section>
       </main>
+
+      <NotificationsModal
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        role="student"
+      />
     </div>
   );
 }

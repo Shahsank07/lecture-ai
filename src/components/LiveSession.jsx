@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ArrowLeft, Mic, MicOff, Pause, Play,
   FileText, Radio, CheckCircle, Loader2, Trash2, Cuboid,
-  BrainCircuit, BookOpen, File, Link2, Sparkles, Bell, Zap
+  BrainCircuit, BookOpen, File, Link2, Sparkles, Bell, Zap,
+  Users, Copy, Check
 } from 'lucide-react';
 import SpeechEngine from '../speechEngine';
-import { saveClass, deleteClass } from '../db';
+import { saveClass, deleteClass, getClass } from '../db';
 import { createNotePoint } from '../utils/textProcessor';
 import { summarizeNotes, extract3DSubject, factCheckTranscript } from '../services/aiService';
 import { generateId, formatDuration } from '../utils/helpers';
@@ -38,7 +39,48 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   const [isFinishing, setIsFinishing] = useState(false);
   const [activeTab, setActiveTab] = useState('transcript');
 
-  const classRef = useRef(classData || {});
+  // Student joining & real-time distribution
+  const [joinCode] = useState(() => classData?.joinCode || ('LEC-' + Math.floor(1000 + Math.random() * 9000)));
+  const [attendees, setAttendees] = useState(classData?.attendees || []);
+  const [showAttendees, setShowAttendees] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  // Polling for connected students in real-time
+  useEffect(() => {
+    if (!classData?.id) return;
+    const pollAttendees = async () => {
+      try {
+        const updated = await getClass(classData.id);
+        if (updated?.attendees && Array.isArray(updated.attendees)) {
+          setAttendees(updated.attendees);
+        }
+      } catch {}
+    };
+    pollAttendees();
+    const interval = setInterval(pollAttendees, 2500);
+    return () => clearInterval(interval);
+  }, [classData?.id]);
+
+  const copyJoinCode = () => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(joinCode);
+    } else {
+      const el = document.createElement('textarea');
+      el.value = joinCode;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+    }
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  };
+
+  const classRef = useRef({
+    ...(classData || {}),
+    joinCode,
+    attendees: classData?.attendees || []
+  });
   const engineRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -499,6 +541,8 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       topics: topicHistory || [],
       currentTopic: currentTopic || 'General',
       smartResources: smartResources || [],
+      joinCode: joinCode,
+      attendees: attendees || [],
     };
     await saveClass(finalData);
     setStatus('completed');
@@ -635,6 +679,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
             saveClass({
               ...classRef.current,
               transcript, notes, duration, status,
+              joinCode, attendees,
             });
             if (engineRef.current) {
               engineRef.current.stop();
@@ -655,11 +700,86 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           </div>
           <span className="session-title">{classData.title}</span>
         </div>
+
+        <div className="session-header-center">
+          <button
+            type="button"
+            className="session-code-pill"
+            onClick={copyJoinCode}
+            title="Click to copy student invite code"
+          >
+            <span className="code-pill-label">🔑 Class Code:</span>
+            <span className="code-pill-val">{joinCode}</span>
+            <span className="code-pill-copy">{codeCopied ? <Check size={13} color="#10B981" /> : <Copy size={13} />}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`session-attendees-pill ${showAttendees ? 'active' : ''}`}
+            onClick={() => setShowAttendees(prev => !prev)}
+            title="View students joined in this lecture"
+          >
+            <Users size={14} />
+            <span>{attendees.length} Joined</span>
+          </button>
+        </div>
+
         <div className="session-timer">
           <div className={`recording-dot ${status === 'paused' ? 'paused' : ''} ${status === 'completed' ? 'completed' : ''}`} />
           <span>{formatDuration(duration)}</span>
         </div>
       </header>
+
+      {/* Attendees Modal / Drawer */}
+      {showAttendees && (
+        <div className="attendees-modal-overlay" onClick={() => setShowAttendees(false)}>
+          <div className="attendees-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="attendees-modal-header">
+              <div className="attendees-header-info">
+                <Users size={20} className="attendees-header-icon" />
+                <div>
+                  <h3>Joined Students ({attendees.length})</h3>
+                  <p>Students connected via code: <strong style={{ color: '#A855F7' }}>{joinCode}</strong></p>
+                </div>
+              </div>
+              <button className="attendees-close-btn" onClick={() => setShowAttendees(false)}>✕</button>
+            </div>
+
+            <div className="attendees-modal-body">
+              {attendees.length === 0 ? (
+                <div className="attendees-empty-state">
+                  <div className="attendees-empty-icon">👥</div>
+                  <h4>No students joined yet</h4>
+                  <p>Share code <strong style={{ color: '#A855F7', letterSpacing: '1px' }}>{joinCode}</strong> with your class. When students enter this code in their <em>"My Lectures"</em> section, they will connect in real time and automatically receive this lecture's recording and notes.</p>
+                  <button className="copy-code-btn" onClick={copyJoinCode}>
+                    {codeCopied ? 'Code Copied! ✓' : 'Copy Class Code'}
+                  </button>
+                </div>
+              ) : (
+                <div className="attendees-list">
+                  {attendees.map((student, idx) => (
+                    <div key={student.id || idx} className="attendee-row">
+                      <div className="attendee-avatar">
+                        {student.avatar ? (
+                          <img src={student.avatar} alt={student.name} />
+                        ) : (
+                          <span>{(student.name || 'S').charAt(0).toUpperCase()}</span>
+                        )}
+                        <span className="live-status-dot"></span>
+                      </div>
+                      <div className="attendee-info">
+                        <span className="attendee-name">{student.name}</span>
+                        <span className="attendee-meta">{student.department || student.email || 'Enrolled Student'}</span>
+                      </div>
+                      <span className="attendee-badge">Connected</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="error-banner-live" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#f87171', padding: '10px 16px', borderRadius: 'var(--radius-md)', margin: '12px 24px', fontSize: 'var(--text-xs)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

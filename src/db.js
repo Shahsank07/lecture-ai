@@ -177,7 +177,9 @@ export async function saveClass(cls) {
   const normalizedCls = {
     ...cls,
     subjectId: cls.subjectId || cls.subject_id,
-    audioUrl: cls.audioUrl || cls.audio_url
+    audioUrl: cls.audioUrl || cls.audio_url,
+    joinCode: cls.joinCode || cls.code || null,
+    attendees: cls.attendees || []
   };
 
   // 1. Instant local persistence (0ms)
@@ -227,6 +229,79 @@ export async function saveClass(cls) {
   })();
 
   return normalizedCls;
+}
+
+export async function getClassByJoinCode(code) {
+  if (!code) return null;
+  const cleanCode = code.trim().toUpperCase();
+  const local = getLocal('classes').find(c =>
+    (c.joinCode && c.joinCode.toUpperCase() === cleanCode) ||
+    (c.code && c.code.toUpperCase() === cleanCode)
+  );
+  if (local) return local;
+
+  const allClasses = await getAllClasses();
+  return allClasses.find(c =>
+    (c.joinCode && c.joinCode.toUpperCase() === cleanCode) ||
+    (c.code && c.code.toUpperCase() === cleanCode)
+  ) || null;
+}
+
+export async function joinLectureByCode(code, studentUser) {
+  if (!code || !studentUser) throw new Error('Valid lecture code and student identity are required.');
+  const cls = await getClassByJoinCode(code);
+  if (!cls) {
+    throw new Error(`Lecture with code "${code.toUpperCase()}" not found. Please verify the code with your instructor.`);
+  }
+
+  const attendees = cls.attendees || [];
+  const studentId = studentUser.id || studentUser.email;
+  const existingIdx = attendees.findIndex(a => a.id === studentId || a.email === studentUser.email);
+
+  const attendeeRecord = {
+    id: studentId,
+    name: studentUser.name || 'Student',
+    email: studentUser.email || '',
+    avatar: studentUser.avatar || '',
+    department: studentUser.department || '',
+    joinedAt: new Date().toISOString()
+  };
+
+  if (existingIdx >= 0) {
+    attendees[existingIdx] = { ...attendees[existingIdx], ...attendeeRecord };
+  } else {
+    attendees.push(attendeeRecord);
+  }
+
+  cls.attendees = attendees;
+  await saveClass(cls);
+
+  // Store in student's personal joined_lectures list
+  try {
+    const joinedList = JSON.parse(localStorage.getItem('vn_joined_lectures') || '[]');
+    if (!joinedList.some(item => item.id === cls.id)) {
+      joinedList.push({ id: cls.id, joinCode: code.toUpperCase(), joinedAt: new Date().toISOString() });
+      localStorage.setItem('vn_joined_lectures', JSON.stringify(joinedList));
+    }
+  } catch {}
+
+  return cls;
+}
+
+export async function getJoinedLectures(studentUser) {
+  if (!studentUser) return [];
+  const allClasses = await getAllClasses();
+  const studentId = studentUser.id || studentUser.email;
+
+  let localJoined = [];
+  try {
+    localJoined = JSON.parse(localStorage.getItem('vn_joined_lectures') || '[]');
+  } catch {}
+
+  return allClasses.filter(c =>
+    c.attendees?.some(a => a.id === studentId || a.email === studentUser.email) ||
+    localJoined.some(j => j.id === c.id)
+  );
 }
 
 export async function deleteClass(id) {

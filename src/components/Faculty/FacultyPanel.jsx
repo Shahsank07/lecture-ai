@@ -10,6 +10,7 @@ import {
 import UploadNotesModal from './UploadNotesModal';
 import UploadQuizModal from './UploadQuizModal';
 import MarkAttendanceModal from './MarkAttendanceModal';
+import NotificationsModal from '../NotificationsModal';
 import './FacultyPanel.css';
 
 export default function FacultyPanel({
@@ -24,6 +25,7 @@ export default function FacultyPanel({
   const [showUploadNotes, setShowUploadNotes] = useState(false);
   const [showUploadQuiz, setShowUploadQuiz] = useState(false);
   const [showAttendance, setShowAttendance] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [selectedClassForAtt, setSelectedClassForAtt] = useState('Data Structures');
 
   const isDemo =
@@ -271,11 +273,6 @@ export default function FacultyPanel({
             <span>Settings</span>
           </button>
 
-          <button className="faculty-nav-item logout-btn" onClick={onLogout}>
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
-
           <div className="faculty-user-card">
             <img
               src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
@@ -301,7 +298,11 @@ export default function FacultyPanel({
 
           <div className="topbar-right">
             {/* Notifications */}
-            <button className="topbar-icon-btn" title="3 unread notifications">
+            <button
+              className="topbar-icon-btn"
+              title="Notifications"
+              onClick={() => setShowNotifications(prev => !prev)}
+            >
               <Bell size={20} />
               <span className="notif-badge">3</span>
             </button>
@@ -756,6 +757,12 @@ export default function FacultyPanel({
         isOpen={showAttendance}
         defaultClass={selectedClassForAtt}
         onClose={() => setShowAttendance(false)}
+      />
+
+      <NotificationsModal
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        role="faculty"
       />
     </div>
   );

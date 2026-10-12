@@ -164,6 +164,8 @@ function App() {
       notes: [],
       status: 'recording',
       duration: 0,
+      joinCode: 'LEC-' + Math.floor(1000 + Math.random() * 9000),
+      attendees: [],
     };
     await saveClass(newClass);
     setCurrentSubject(targetSub);
@@ -202,6 +204,8 @@ function App() {
       notes: [],
       status: 'recording',
       duration: 0,
+      joinCode: 'LEC-' + Math.floor(1000 + Math.random() * 9000),
+      attendees: [],
     };
     await saveClass(newClass);
     setCurrentSubject(targetSubject);
@@ -415,7 +419,14 @@ function App() {
       )}
 
       {showSettingsModal && (
-        <SettingsModal onClose={() => setShowSettingsModal(false)} />
+        <SettingsModal
+          onClose={() => setShowSettingsModal(false)}
+          onLogout={() => {
+            setShowSettingsModal(false);
+            logout();
+          }}
+          user={user}
+        />
       )}
     </div>
   );
