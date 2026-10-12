@@ -43,7 +43,10 @@ function App() {
   const loadSubjects = useCallback(async () => {
     if (!user) return;
     try {
-      await seedDefaultSubjectsAndClasses(user.id);
+      const isDemo = user.id === 'faculty-alex-johnson' || user.id === 'student-arjun-sharma' || user.email?.toLowerCase().includes('@university.edu');
+      if (isDemo) {
+        await seedDefaultSubjectsAndClasses(user.id);
+      }
       const subs = await getAllSubjects(user.id);
       setSubjects(subs);
     } catch (e) {
@@ -285,6 +288,7 @@ function App() {
       return (
         <SubjectView
           subject={currentSubject}
+          user={user}
           onNavigate={navigate}
           onRefresh={refreshSubjects}
         />
@@ -306,7 +310,7 @@ function App() {
         return <ProgressPage onNavigate={navigate} />;
       }
       if (view === 'assignments') {
-        return <AssignmentsPage onNavigate={navigate} />;
+        return <AssignmentsPage user={user} onNavigate={navigate} />;
       }
       if (view === 'announcements') {
         return <AnnouncementsPage onNavigate={navigate} />;
@@ -321,10 +325,29 @@ function App() {
         );
       }
       if (view === 'notes' || view === 'lectures' || view === 'classes') {
-        const targetSub = currentSubject || subjects[0] || { id: 'sub-dsa', name: 'Data Structures', emoji: '📚', color: '#7C3AED' };
+        const isDemo =
+          user?.id === 'student-arjun-sharma' ||
+          user?.id === 'faculty-alex-johnson' ||
+          user?.email?.toLowerCase().includes('arjun.sharma@university.edu') ||
+          user?.email?.toLowerCase().includes('alex.johnson@university.edu');
+        const targetSub = currentSubject || subjects[0] || (isDemo ? { id: 'sub-dsa', name: 'Data Structures', emoji: '📚', color: '#7C3AED' } : null);
+        if (!targetSub) {
+          return (
+            <div style={{ minHeight: '50vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '40px 20px', color: '#94A3B8' }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(124, 58, 237, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <BookOpen size={32} color="#7C3AED" />
+              </div>
+              <h2 style={{ fontSize: '20px', color: '#FFFFFF', marginBottom: 8 }}>No Classes Enrolled</h2>
+              <p style={{ fontSize: '14px', color: '#64748B', maxWidth: 420, marginBottom: 20 }}>
+                {user?.role === 'faculty' ? 'Create your first subject to start recording lectures.' : 'You have not enrolled in any classes yet.'}
+              </p>
+            </div>
+          );
+        }
         return (
           <SubjectView
             subject={targetSub}
+            user={user}
             onNavigate={navigate}
             onRefresh={refreshSubjects}
           />
@@ -361,6 +384,7 @@ function App() {
       return (
         <FacultyPanel
           user={user}
+          subjects={subjects}
           onLogout={logout}
           onStartLecture={handleFacultyStartLecture}
           onNavigate={navigate}
@@ -371,6 +395,7 @@ function App() {
     return (
       <StudentPanel
         user={user}
+        subjects={subjects}
         onLogout={logout}
         onNavigate={navigate}
         onOpenSettings={() => setShowSettingsModal(true)}

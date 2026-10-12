@@ -14,6 +14,7 @@ import './FacultyPanel.css';
 
 export default function FacultyPanel({
   user,
+  subjects = [],
   onLogout,
   onStartLecture,
   onNavigate,
@@ -25,10 +26,14 @@ export default function FacultyPanel({
   const [showAttendance, setShowAttendance] = useState(false);
   const [selectedClassForAtt, setSelectedClassForAtt] = useState('Data Structures');
 
+  const isDemo =
+    user?.id === 'faculty-alex-johnson' ||
+    user?.email?.toLowerCase().includes('alex.johnson@university.edu');
+
   // Interactive Announcements State
   const [announcementText, setAnnouncementText] = useState('');
   const [announcementTitle, setAnnouncementTitle] = useState('');
-  const [announcementsList, setAnnouncementsList] = useState([
+  const [announcementsList, setAnnouncementsList] = useState(isDemo ? [
     {
       id: 'ann-1',
       title: 'Mid Sem Exams Schedule Announcement',
@@ -43,9 +48,9 @@ export default function FacultyPanel({
       classGroup: 'Data Structures (3rd Sem)',
       time: '1 day ago'
     }
-  ]);
+  ] : []);
 
-  const todayClasses = [
+  const todayClasses = isDemo ? [
     {
       id: 'ds-101',
       time: '10:00 AM',
@@ -70,9 +75,9 @@ export default function FacultyPanel({
       room: 'Room 204',
       students: 40
     }
-  ];
+  ] : [];
 
-  const upcomingLectures = [
+  const upcomingLectures = isDemo ? [
     {
       id: 'cn-201',
       month: 'MAY',
@@ -100,7 +105,12 @@ export default function FacultyPanel({
       time: '10:00 AM - 11:00 AM',
       room: 'Room 402'
     }
-  ];
+  ] : [];
+
+  const classesCount = isDemo ? 5 : (subjects?.length || user?.classesCount || 0);
+  const lecturesCount = isDemo ? 3 : 0;
+  const studentsCount = isDemo ? 142 : (user?.studentsCount || 0);
+  const pendingTasksCount = isDemo ? 7 : 0;
 
   const handleStartClassLecture = (cls) => {
     if (onStartLecture) {
@@ -319,9 +329,9 @@ export default function FacultyPanel({
               <Users size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">5</div>
+              <div className="stat-value">{classesCount}</div>
               <div className="stat-title">My Classes</div>
-              <div className="stat-sub">Active Classes</div>
+              <div className="stat-sub">{classesCount === 1 ? '1 Active Class' : `${classesCount} Active Classes`}</div>
             </div>
           </div>
 
@@ -330,7 +340,7 @@ export default function FacultyPanel({
               <BookOpen size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">3</div>
+              <div className="stat-value">{lecturesCount}</div>
               <div className="stat-title">Today's Lectures</div>
               <div className="stat-sub">Scheduled Today</div>
             </div>
@@ -341,7 +351,7 @@ export default function FacultyPanel({
               <Users size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">142</div>
+              <div className="stat-value">{studentsCount}</div>
               <div className="stat-title">Total Students</div>
               <div className="stat-sub">Across All Classes</div>
             </div>
@@ -352,7 +362,7 @@ export default function FacultyPanel({
               <ClipboardCheck size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">7</div>
+              <div className="stat-value">{pendingTasksCount}</div>
               <div className="stat-title">Pending Tasks</div>
               <div className="stat-sub">Assignments / Quizzes</div>
             </div>
@@ -372,38 +382,48 @@ export default function FacultyPanel({
                   </div>
                 </div>
 
-                <div className="classes-timeline-list">
-                  {todayClasses.map((cls) => (
-                    <div key={cls.id} className="timeline-class-row">
-                      <div className="timeline-time-box">
-                        <span className="time-primary">{cls.time.split(' ')[0]}</span>
-                        <span className="time-period">{cls.time.split(' ')[1]}</span>
-                      </div>
-
-                      <div className="timeline-info-box">
-                        <h3 className="class-course-name">{cls.name}</h3>
-                        <p className="class-section-sub">{cls.section}</p>
-                        <div className="class-room-badge">
-                          <MapPin size={13} />
-                          <span>{cls.room}</span>
+                {todayClasses.length === 0 ? (
+                  <div style={{ padding: '40px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                    <Calendar size={36} style={{ margin: '0 auto 12px', opacity: 0.35, color: '#A855F7' }} />
+                    <h4 style={{ color: '#F1F5F9', fontSize: '15px', marginBottom: '6px' }}>No Classes Scheduled Today</h4>
+                    <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '300px', margin: '0 auto' }}>
+                      You have no classes scheduled for today. Start a live lecture anytime to record and generate AI summaries.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="classes-timeline-list">
+                    {todayClasses.map((cls) => (
+                      <div key={cls.id} className="timeline-class-row">
+                        <div className="timeline-time-box">
+                          <span className="time-primary">{cls.time.split(' ')[0]}</span>
+                          <span className="time-period">{cls.time.split(' ')[1]}</span>
                         </div>
-                      </div>
 
-                      <div className="timeline-students-badge">
-                        <span className="students-num">{cls.students}</span>
-                        <span className="students-label">Students</span>
-                      </div>
+                        <div className="timeline-info-box">
+                          <h3 className="class-course-name">{cls.name}</h3>
+                          <p className="class-section-sub">{cls.section}</p>
+                          <div className="class-room-badge">
+                            <MapPin size={13} />
+                            <span>{cls.room}</span>
+                          </div>
+                        </div>
 
-                      <button
-                        className="start-lecture-action-btn"
-                        onClick={() => handleStartClassLecture(cls)}
-                        title="Start recording class and let AI generate summary notes"
-                      >
-                        <span>Start Lecture</span>
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <div className="timeline-students-badge">
+                          <span className="students-num">{cls.students}</span>
+                          <span className="students-label">Students</span>
+                        </div>
+
+                        <button
+                          className="start-lecture-action-btn"
+                          onClick={() => handleStartClassLecture(cls)}
+                          title="Start recording class and let AI generate summary notes"
+                        >
+                          <span>Start Lecture</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="content-card-footer">
                   <button className="view-link-btn" onClick={() => setActiveTab('classes')}>
@@ -425,32 +445,42 @@ export default function FacultyPanel({
                   </button>
                 </div>
 
-                <div className="upcoming-lectures-list">
-                  {upcomingLectures.map((item) => (
-                    <div key={item.id} className="upcoming-lecture-row">
-                      <div className="upcoming-date-badge">
-                        <span className="month-tag">{item.month}</span>
-                        <span className="day-number">{item.day}</span>
-                      </div>
-
-                      <div className="upcoming-details">
-                        <h3 className="upcoming-title">{item.name}</h3>
-                        <p className="upcoming-section">{item.section}</p>
-                        <div className="upcoming-time-loc">
-                          <Clock size={13} />
-                          <span>{item.time}</span>
-                          <span className="dot-sep">•</span>
-                          <MapPin size={13} />
-                          <span>{item.room}</span>
+                {upcomingLectures.length === 0 ? (
+                  <div style={{ padding: '40px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                    <Clock size={36} style={{ margin: '0 auto 12px', opacity: 0.35, color: '#38BDF8' }} />
+                    <h4 style={{ color: '#F1F5F9', fontSize: '15px', marginBottom: '6px' }}>No Upcoming Lectures</h4>
+                    <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '300px', margin: '0 auto' }}>
+                      Future scheduled lectures and exam sessions will appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="upcoming-lectures-list">
+                    {upcomingLectures.map((item) => (
+                      <div key={item.id} className="upcoming-lecture-row">
+                        <div className="upcoming-date-badge">
+                          <span className="month-tag">{item.month}</span>
+                          <span className="day-number">{item.day}</span>
                         </div>
-                      </div>
 
-                      <button className="row-options-btn" onClick={() => handleStartClassLecture({ id: item.id, name: item.name, section: item.section, room: item.room })}>
-                        <MoreVertical size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <div className="upcoming-details">
+                          <h3 className="upcoming-title">{item.name}</h3>
+                          <p className="upcoming-section">{item.section}</p>
+                          <div className="upcoming-time-loc">
+                            <Clock size={13} />
+                            <span>{item.time}</span>
+                            <span className="dot-sep">•</span>
+                            <MapPin size={13} />
+                            <span>{item.room}</span>
+                          </div>
+                        </div>
+
+                        <button className="row-options-btn" onClick={() => handleStartClassLecture({ id: item.id, name: item.name, section: item.section, room: item.room })}>
+                          <MoreVertical size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
 

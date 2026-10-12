@@ -5,14 +5,26 @@ import { generateId, formatDate, formatDuration } from '../utils/helpers';
 import { getTopicPreset } from '../utils/topicThemes';
 import './SubjectView.css';
 
-function SubjectView({ subject, onNavigate, onRefresh }) {
-  const safeSubject = subject || {
+function SubjectView({ subject, user, onNavigate, onRefresh }) {
+  const isDemo =
+    user?.id === 'student-arjun-sharma' ||
+    user?.id === 'faculty-alex-johnson' ||
+    user?.email?.toLowerCase().includes('arjun.sharma@university.edu') ||
+    user?.email?.toLowerCase().includes('alex.johnson@university.edu');
+
+  const safeSubject = subject || (isDemo ? {
     id: 'sub-dsa',
     name: 'Data Structures',
     emoji: '📚',
     topicPreset: 'studio',
     color: '#7C3AED'
-  };
+  } : {
+    id: 'new-course',
+    name: 'Classroom',
+    emoji: '📚',
+    topicPreset: 'studio',
+    color: '#7C3AED'
+  });
 
   const [classes, setClasses] = useState([]);
 
@@ -98,7 +110,7 @@ function SubjectView({ subject, onNavigate, onRefresh }) {
 
   const lastPausedClass = classes.find((c) => c.status === 'paused' || c.status === 'recording');
   const topicTheme = getTopicPreset(safeSubject.topicPreset || safeSubject.name);
-  const displayClasses = classes.length > 0 ? classes : DEMO_CLASSES;
+  const displayClasses = classes.length > 0 ? classes : (isDemo ? DEMO_CLASSES : []);
 
   return (
     <div className="subject-view-container">

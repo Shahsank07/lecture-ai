@@ -5,11 +5,17 @@ import {
 } from 'lucide-react';
 import './AssignmentsPage.css';
 
-export default function AssignmentsPage({ onNavigate }) {
+export default function AssignmentsPage({ user, onNavigate }) {
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'pending' | 'submitted'
   const [searchQuery, setSearchQuery] = useState('');
 
-  const assignmentsList = [
+  const isDemo =
+    user?.id === 'student-arjun-sharma' ||
+    user?.id === 'faculty-alex-johnson' ||
+    user?.email?.toLowerCase().includes('arjun.sharma@university.edu') ||
+    user?.email?.toLowerCase().includes('alex.johnson@university.edu');
+
+  const DEMO_ASSIGNMENTS = [
     {
       id: 'asg-1',
       title: 'DSA Assignment 2: AVL Tree Rotations & Balanced Trees',
@@ -92,6 +98,8 @@ export default function AssignmentsPage({ onNavigate }) {
     }
   ];
 
+  const assignmentsList = isDemo ? DEMO_ASSIGNMENTS : [];
+
   const filteredAssignments = assignmentsList.filter(asg => {
     const matchesFilter = activeFilter === 'all' || asg.status === activeFilter;
     const matchesSearch = asg.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -101,6 +109,7 @@ export default function AssignmentsPage({ onNavigate }) {
 
   const pendingCount = assignmentsList.filter(a => a.status === 'pending').length;
   const submittedCount = assignmentsList.filter(a => a.status === 'submitted').length;
+  const avgPerformance = isDemo && submittedCount > 0 ? '95.0%' : (submittedCount > 0 ? '100%' : '0%');
 
   return (
     <div className="assignments-page-container">
@@ -138,7 +147,7 @@ export default function AssignmentsPage({ onNavigate }) {
         <div className="asg-stat-card">
           <div className="stat-icon blue-stat"><Award size={22} /></div>
           <div>
-            <div className="stat-value">95.0%</div>
+            <div className="stat-value">{avgPerformance}</div>
             <div className="stat-label">Average Performance</div>
           </div>
         </div>
@@ -180,7 +189,16 @@ export default function AssignmentsPage({ onNavigate }) {
 
       {/* Assignments cards list */}
       <div className="assignments-list-grid">
-        {filteredAssignments.map((asg) => (
+        {filteredAssignments.length === 0 ? (
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94A3B8', gridColumn: '1 / -1' }}>
+            <ClipboardList size={48} style={{ margin: '0 auto 16px', opacity: 0.35, color: '#7C3AED' }} />
+            <h3 style={{ color: '#FFFFFF', fontSize: '18px', marginBottom: '8px' }}>No Assignments Found</h3>
+            <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '380px', margin: '0 auto' }}>
+              {searchQuery ? 'No assignments match your search query.' : "You don't have any assignments or tasks assigned at this moment."}
+            </p>
+          </div>
+        ) : (
+          filteredAssignments.map((asg) => (
           <div key={asg.id} className={`assignment-card ${asg.urgency}`}>
             <div className="card-top-row">
               <div className="course-chip">
@@ -242,7 +260,7 @@ export default function AssignmentsPage({ onNavigate }) {
               )}
             </div>
           </div>
-        ))}
+        )))}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import './StudentPanel.css';
 
 export default function StudentPanel({
   user,
+  subjects = [],
   onLogout,
   onNavigate,
   onOpenSettings
@@ -17,7 +18,11 @@ export default function StudentPanel({
   const [activeNav, setActiveNav] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const todaySchedule = [
+  const isDemo =
+    user?.id === 'student-arjun-sharma' ||
+    user?.email?.toLowerCase().includes('arjun.sharma@university.edu');
+
+  const todaySchedule = isDemo ? [
     {
       id: 'sched-1',
       time: '10:00 AM',
@@ -54,9 +59,9 @@ export default function StudentPanel({
       type: 'Tutorial',
       typeClass: 'green-tag'
     }
-  ];
+  ] : [];
 
-  const recentLectures = [
+  const recentLectures = isDemo ? [
     {
       id: 'lec-1',
       title: 'Database Normalization (1NF to 3NF)',
@@ -89,9 +94,9 @@ export default function StudentPanel({
       duration: '41:05',
       thumb: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&auto=format&fit=crop&q=80'
     }
-  ];
+  ] : [];
 
-  const upcomingDeadlines = [
+  const upcomingDeadlines = isDemo ? [
     {
       id: 'dl-1',
       title: 'DSA Assignment 2',
@@ -116,9 +121,9 @@ export default function StudentPanel({
       daysLeft: '8 Days Left',
       urgency: 'safe'
     }
-  ];
+  ] : [];
 
-  const announcements = [
+  const announcements = isDemo ? [
     {
       id: 'ann-1',
       title: 'Mid Sem Exams Schedule',
@@ -140,7 +145,22 @@ export default function StudentPanel({
       time: '2 days ago',
       color: '#10B981'
     }
+  ] : [
+    {
+      id: 'ann-welcome',
+      title: 'Welcome to LectureAI! 🎓',
+      desc: 'Your smart lecture recording, notes, and AI study companion.',
+      time: 'Just now',
+      color: '#7C3AED'
+    }
   ];
+
+  const classesCount = isDemo ? 5 : (subjects?.length || user?.enrolledClassesCount || 0);
+  const lecturesCount = isDemo ? 12 : 0;
+  const assignmentsCount = isDemo ? 8 : 0;
+  const pendingCount = isDemo ? 2 : 0;
+  const progressPercent = isDemo ? '75%' : '0%';
+  const progressSub = isDemo ? 'Keep it up!' : 'Start learning';
 
   const handleNavClick = (viewId) => {
     setActiveNav(viewId);
@@ -365,9 +385,9 @@ export default function StudentPanel({
               <BookOpen size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">5</div>
+              <div className="stat-value">{classesCount}</div>
               <div className="stat-title">My Classes</div>
-              <div className="stat-sub">Active Classes</div>
+              <div className="stat-sub">{classesCount === 1 ? '1 Active Class' : `${classesCount} Active Classes`}</div>
             </div>
           </div>
 
@@ -376,9 +396,9 @@ export default function StudentPanel({
               <Play size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">12</div>
+              <div className="stat-value">{lecturesCount}</div>
               <div className="stat-title">My Lectures</div>
-              <div className="stat-sub">Completed / Total</div>
+              <div className="stat-sub">{isDemo ? 'Completed / Total' : 'Recorded Lectures'}</div>
             </div>
           </div>
 
@@ -387,9 +407,9 @@ export default function StudentPanel({
               <CheckCircle2 size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">8</div>
+              <div className="stat-value">{assignmentsCount}</div>
               <div className="stat-title">Assignments</div>
-              <div className="stat-sub">2 Pending</div>
+              <div className="stat-sub">{pendingCount} Pending</div>
             </div>
           </div>
 
@@ -398,9 +418,9 @@ export default function StudentPanel({
               <TrendingUp size={22} />
             </div>
             <div className="stat-content">
-              <div className="stat-value">75%</div>
+              <div className="stat-value">{progressPercent}</div>
               <div className="stat-title">Overall Progress</div>
-              <div className="stat-sub">Keep it up!</div>
+              <div className="stat-sub">{progressSub}</div>
             </div>
           </div>
         </section>
@@ -420,46 +440,56 @@ export default function StudentPanel({
               </button>
             </div>
 
-            <div className="student-schedule-list">
-              {todaySchedule.map((cls) => {
-                const getTargetView = () => {
-                  if (cls.name.toLowerCase().includes('data structure')) return 'subject:sub-dsa';
-                  if (cls.name.toLowerCase().includes('database')) return 'subject:sub-dbms';
-                  if (cls.name.toLowerCase().includes('operating')) return 'subject:sub-os';
-                  return 'calendar';
-                };
-                return (
-                  <div
-                    key={cls.id}
-                    className="schedule-item-row"
-                    onClick={() => {
-                      if (onNavigate) onNavigate(getTargetView());
-                    }}
-                    style={{ cursor: 'pointer' }}
-                    title={`Click to open ${cls.name} classroom`}
-                  >
-                    <div className="schedule-time-box">
-                      <span className="time-primary">{cls.time.split(' ')[0]}</span>
-                      <span className="time-period">{cls.time.split(' ')[1]}</span>
-                    </div>
+            {todaySchedule.length === 0 ? (
+              <div style={{ padding: '36px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                <Calendar size={36} style={{ margin: '0 auto 12px', opacity: 0.35, color: '#A855F7' }} />
+                <h4 style={{ color: '#F1F5F9', fontSize: '15px', marginBottom: '6px' }}>No Classes Scheduled Today</h4>
+                <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '280px', margin: '0 auto' }}>
+                  You have no lectures or tutorials scheduled for today. Enjoy your day!
+                </p>
+              </div>
+            ) : (
+              <div className="student-schedule-list">
+                {todaySchedule.map((cls) => {
+                  const getTargetView = () => {
+                    if (cls.name.toLowerCase().includes('data structure')) return 'subject:sub-dsa';
+                    if (cls.name.toLowerCase().includes('database')) return 'subject:sub-dbms';
+                    if (cls.name.toLowerCase().includes('operating')) return 'subject:sub-os';
+                    return 'calendar';
+                  };
+                  return (
+                    <div
+                      key={cls.id}
+                      className="schedule-item-row"
+                      onClick={() => {
+                        if (onNavigate) onNavigate(getTargetView());
+                      }}
+                      style={{ cursor: 'pointer' }}
+                      title={`Click to open ${cls.name} classroom`}
+                    >
+                      <div className="schedule-time-box">
+                        <span className="time-primary">{cls.time.split(' ')[0]}</span>
+                        <span className="time-period">{cls.time.split(' ')[1]}</span>
+                      </div>
 
-                    <div className="schedule-info-box">
-                      <h3 className="schedule-course-name">{cls.name}</h3>
-                      <p className="schedule-section-sub">{cls.section}</p>
-                      <div className="schedule-room">
-                        <MapPin size={12} />
-                        <span>{cls.room}</span>
+                      <div className="schedule-info-box">
+                        <h3 className="schedule-course-name">{cls.name}</h3>
+                        <p className="schedule-section-sub">{cls.section}</p>
+                        <div className="schedule-room">
+                          <MapPin size={12} />
+                          <span>{cls.room}</span>
+                        </div>
+                      </div>
+
+                      <div className="schedule-tag-wrap">
+                        <span className={`schedule-type-badge ${cls.typeClass}`}>{cls.type}</span>
+                        <ChevronRight size={16} className="arrow-icon" />
                       </div>
                     </div>
-
-                    <div className="schedule-tag-wrap">
-                      <span className={`schedule-type-badge ${cls.typeClass}`}>{cls.type}</span>
-                      <ChevronRight size={16} className="arrow-icon" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="student-card-footer">
               <button className="view-link-btn" onClick={() => handleNavClick('calendar')}>
@@ -481,44 +511,54 @@ export default function StudentPanel({
               </button>
             </div>
 
-            <div className="recent-lectures-list">
-              {recentLectures.map((lec) => (
-                <div
-                  key={lec.id}
-                  className="recent-lecture-row"
-                  onClick={() => {
-                    if (onNavigate) {
-                      if (lec.id === 'lec-1') onNavigate('notes:cls-dbms-norm');
-                      else if (lec.id === 'lec-2') onNavigate('notes:cls-dsa-trees');
-                      else if (lec.id === 'lec-3') onNavigate('notes:cls-os-sync');
-                      else if (lec.id === 'lec-4') onNavigate('notes:cls-dbms-er');
-                      else onNavigate('notes');
-                    }
-                  }}
-                  title="Click to view lecture notes and AI summary"
-                >
-                  <div className="lecture-thumb-box">
-                    <img src={lec.thumb} alt={lec.title} />
-                    <span className="duration-tag">{lec.duration}</span>
-                  </div>
+            {recentLectures.length === 0 ? (
+              <div style={{ padding: '36px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                <Play size={36} style={{ margin: '0 auto 12px', opacity: 0.35, color: '#38BDF8' }} />
+                <h4 style={{ color: '#F1F5F9', fontSize: '15px', marginBottom: '6px' }}>No Recorded Lectures Yet</h4>
+                <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '280px', margin: '0 auto' }}>
+                  Lectures recorded by your instructors will appear here with AI summaries and notes.
+                </p>
+              </div>
+            ) : (
+              <div className="recent-lectures-list">
+                {recentLectures.map((lec) => (
+                  <div
+                    key={lec.id}
+                    className="recent-lecture-row"
+                    onClick={() => {
+                      if (onNavigate) {
+                        if (lec.id === 'lec-1') onNavigate('notes:cls-dbms-norm');
+                        else if (lec.id === 'lec-2') onNavigate('notes:cls-dsa-trees');
+                        else if (lec.id === 'lec-3') onNavigate('notes:cls-os-sync');
+                        else if (lec.id === 'lec-4') onNavigate('notes:cls-dbms-er');
+                        else onNavigate('notes');
+                      }
+                    }}
+                    title="Click to view lecture notes and AI summary"
+                  >
+                    <div className="lecture-thumb-box">
+                      <img src={lec.thumb} alt={lec.title} />
+                      <span className="duration-tag">{lec.duration}</span>
+                    </div>
 
-                  <div className="lecture-details-box">
-                    <h4 className="lecture-title">{lec.title}</h4>
-                    <span className="lecture-course">{lec.course}</span>
-                    <span className="lecture-date">{lec.date}</span>
-                  </div>
+                    <div className="lecture-details-box">
+                      <h4 className="lecture-title">{lec.title}</h4>
+                      <span className="lecture-course">{lec.course}</span>
+                      <span className="lecture-date">{lec.date}</span>
+                    </div>
 
-                  <div className="lecture-action-icons">
-                    <button className="thumb-action-btn" title="Download Notes">
-                      <Download size={14} />
-                    </button>
-                    <button className="thumb-action-btn" title="Options">
-                      <MoreVertical size={14} />
-                    </button>
+                    <div className="lecture-action-icons">
+                      <button className="thumb-action-btn" title="Download Notes">
+                        <Download size={14} />
+                      </button>
+                      <button className="thumb-action-btn" title="Options">
+                        <MoreVertical size={14} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div className="student-card-footer">
               <button className="view-link-btn" onClick={() => handleNavClick('lectures')}>
@@ -542,26 +582,36 @@ export default function StudentPanel({
                 </button>
               </div>
 
-              <div className="deadlines-list">
-                {upcomingDeadlines.map((dl) => (
-                  <div
-                    key={dl.id}
-                    className="deadline-row"
-                    onClick={() => handleNavClick('assignments')}
-                    style={{ cursor: 'pointer' }}
-                    title="Click to view all assignments and deadlines"
-                  >
-                    <div className="deadline-left">
-                      <h4 className="deadline-name">{dl.title}</h4>
-                      <span className="deadline-course">{dl.course}</span>
-                      <span className="deadline-date">Due: {dl.due}</span>
+              {upcomingDeadlines.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                  <CheckCircle2 size={32} style={{ margin: '0 auto 8px', opacity: 0.4, color: '#10B981' }} />
+                  <h4 style={{ color: '#F1F5F9', fontSize: '14px', marginBottom: '4px' }}>All Caught Up! 🎉</h4>
+                  <p style={{ fontSize: '12px', color: '#64748B' }}>
+                    You have no pending assignments or quiz deadlines.
+                  </p>
+                </div>
+              ) : (
+                <div className="deadlines-list">
+                  {upcomingDeadlines.map((dl) => (
+                    <div
+                      key={dl.id}
+                      className="deadline-row"
+                      onClick={() => handleNavClick('assignments')}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to view all assignments and deadlines"
+                    >
+                      <div className="deadline-left">
+                        <h4 className="deadline-name">{dl.title}</h4>
+                        <span className="deadline-course">{dl.course}</span>
+                        <span className="deadline-date">Due: {dl.due}</span>
+                      </div>
+                      <div className={`deadline-badge ${dl.urgency}`}>
+                        {dl.daysLeft}
+                      </div>
                     </div>
-                    <div className={`deadline-badge ${dl.urgency}`}>
-                      {dl.daysLeft}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Announcements */}
@@ -576,24 +626,32 @@ export default function StudentPanel({
                 </button>
               </div>
 
-              <div className="announcements-list">
-                {announcements.map((ann) => (
-                  <div
-                    key={ann.id}
-                    className="announcement-row"
-                    onClick={() => handleNavClick('announcements')}
-                    style={{ cursor: 'pointer' }}
-                    title="Click to open announcements page"
-                  >
-                    <div className="ann-dot" style={{ backgroundColor: ann.color }}></div>
-                    <div className="ann-body">
-                      <h4 className="ann-title">{ann.title}</h4>
-                      <p className="ann-desc">{ann.desc}</p>
-                      <span className="ann-time">{ann.time}</span>
+              {announcements.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94A3B8' }}>
+                  <Megaphone size={32} style={{ margin: '0 auto 8px', opacity: 0.4, color: '#F59E0B' }} />
+                  <h4 style={{ color: '#F1F5F9', fontSize: '14px', marginBottom: '4px' }}>No Announcements</h4>
+                  <p style={{ fontSize: '12px', color: '#64748B' }}>Check back later for university updates.</p>
+                </div>
+              ) : (
+                <div className="announcements-list">
+                  {announcements.map((ann) => (
+                    <div
+                      key={ann.id}
+                      className="announcement-row"
+                      onClick={() => handleNavClick('announcements')}
+                      style={{ cursor: 'pointer' }}
+                      title="Click to open announcements page"
+                    >
+                      <div className="ann-dot" style={{ backgroundColor: ann.color }}></div>
+                      <div className="ann-body">
+                        <h4 className="ann-title">{ann.title}</h4>
+                        <p className="ann-desc">{ann.desc}</p>
+                        <span className="ann-time">{ann.time}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
