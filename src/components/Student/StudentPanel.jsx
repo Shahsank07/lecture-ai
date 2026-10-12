@@ -318,7 +318,7 @@ export default function StudentPanel({
         {/* Header */}
         <header className="student-topbar">
           <div className="student-topbar-left">
-            <h1 className="student-greeting">Good Morning, {user?.name ? user.name.split(' ')[0] : 'Arjun'}! 👋</h1>
+            <h1 className="student-greeting">Good Morning, {user?.name || 'Student'}! 👋</h1>
             <p className="student-subgreeting">Stay focused and keep learning.</p>
           </div>
 
