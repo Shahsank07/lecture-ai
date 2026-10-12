@@ -152,7 +152,9 @@ export default function StudentPanel({
       else if (viewId === 'ai-assistant' || viewId === 'messages') onNavigate('ai-assistant');
       else if (viewId === 'progress') onNavigate('progress');
       else if (viewId === 'calendar') onNavigate('calendar');
-      else if (viewId === 'quizzes' || viewId === 'assignments') onNavigate('quizzes');
+      else if (viewId === 'assignments') onNavigate('assignments');
+      else if (viewId === 'announcements') onNavigate('announcements');
+      else if (viewId === 'quizzes') onNavigate('quizzes');
     }
   };
 
@@ -419,28 +421,44 @@ export default function StudentPanel({
             </div>
 
             <div className="student-schedule-list">
-              {todaySchedule.map((cls) => (
-                <div key={cls.id} className="schedule-item-row">
-                  <div className="schedule-time-box">
-                    <span className="time-primary">{cls.time.split(' ')[0]}</span>
-                    <span className="time-period">{cls.time.split(' ')[1]}</span>
-                  </div>
+              {todaySchedule.map((cls) => {
+                const getTargetView = () => {
+                  if (cls.name.toLowerCase().includes('data structure')) return 'subject:sub-dsa';
+                  if (cls.name.toLowerCase().includes('database')) return 'subject:sub-dbms';
+                  if (cls.name.toLowerCase().includes('operating')) return 'subject:sub-os';
+                  return 'calendar';
+                };
+                return (
+                  <div
+                    key={cls.id}
+                    className="schedule-item-row"
+                    onClick={() => {
+                      if (onNavigate) onNavigate(getTargetView());
+                    }}
+                    style={{ cursor: 'pointer' }}
+                    title={`Click to open ${cls.name} classroom`}
+                  >
+                    <div className="schedule-time-box">
+                      <span className="time-primary">{cls.time.split(' ')[0]}</span>
+                      <span className="time-period">{cls.time.split(' ')[1]}</span>
+                    </div>
 
-                  <div className="schedule-info-box">
-                    <h3 className="schedule-course-name">{cls.name}</h3>
-                    <p className="schedule-section-sub">{cls.section}</p>
-                    <div className="schedule-room">
-                      <MapPin size={12} />
-                      <span>{cls.room}</span>
+                    <div className="schedule-info-box">
+                      <h3 className="schedule-course-name">{cls.name}</h3>
+                      <p className="schedule-section-sub">{cls.section}</p>
+                      <div className="schedule-room">
+                        <MapPin size={12} />
+                        <span>{cls.room}</span>
+                      </div>
+                    </div>
+
+                    <div className="schedule-tag-wrap">
+                      <span className={`schedule-type-badge ${cls.typeClass}`}>{cls.type}</span>
+                      <ChevronRight size={16} className="arrow-icon" />
                     </div>
                   </div>
-
-                  <div className="schedule-tag-wrap">
-                    <span className={`schedule-type-badge ${cls.typeClass}`}>{cls.type}</span>
-                    <ChevronRight size={16} className="arrow-icon" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="student-card-footer">
@@ -526,7 +544,13 @@ export default function StudentPanel({
 
               <div className="deadlines-list">
                 {upcomingDeadlines.map((dl) => (
-                  <div key={dl.id} className="deadline-row">
+                  <div
+                    key={dl.id}
+                    className="deadline-row"
+                    onClick={() => handleNavClick('assignments')}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to view all assignments and deadlines"
+                  >
                     <div className="deadline-left">
                       <h4 className="deadline-name">{dl.title}</h4>
                       <span className="deadline-course">{dl.course}</span>
@@ -554,7 +578,13 @@ export default function StudentPanel({
 
               <div className="announcements-list">
                 {announcements.map((ann) => (
-                  <div key={ann.id} className="announcement-row">
+                  <div
+                    key={ann.id}
+                    className="announcement-row"
+                    onClick={() => handleNavClick('announcements')}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to open announcements page"
+                  >
                     <div className="ann-dot" style={{ backgroundColor: ann.color }}></div>
                     <div className="ann-body">
                       <h4 className="ann-title">{ann.title}</h4>

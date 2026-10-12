@@ -15,6 +15,8 @@ import ResourcesPage from './components/ResourcesPage';
 import AIAssistantPage from './components/AIAssistantPage';
 import ProgressPage from './components/ProgressPage';
 import FlashcardViewerPage from './components/FlashcardViewerPage';
+import AssignmentsPage from './components/AssignmentsPage';
+import AnnouncementsPage from './components/AnnouncementsPage';
 import {
   getAllSubjects, getSubject, getClass, saveSubject, saveClass,
   getAllClasses, seedDefaultSubjectsAndClasses
@@ -302,6 +304,12 @@ function App() {
       }
       if (view === 'progress') {
         return <ProgressPage onNavigate={navigate} />;
+      }
+      if (view === 'assignments') {
+        return <AssignmentsPage onNavigate={navigate} />;
+      }
+      if (view === 'announcements') {
+        return <AnnouncementsPage onNavigate={navigate} />;
       }
       if (view === 'quizzes' || view === 'flashcards') {
         return (
