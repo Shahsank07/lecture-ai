@@ -215,9 +215,9 @@ function NoteEditor({ classData, subject, onNavigate, onRefreshClass }) {
       {/* Header */}
       <div className="page-header animate-in">
         <div className="page-header-left">
-          <div className="page-header-emoji">{subject.emoji}</div>
+          <div className="page-header-emoji">{subject?.emoji || '📝'}</div>
           <div className="page-header-info">
-            <h1>Editing — {classData.title}</h1>
+            <h1>Editing — {classData?.title || 'Lecture Session'}</h1>
             <p>Select text to highlight • Click to edit • Auto-saves</p>
           </div>
         </div>
@@ -261,7 +261,7 @@ function NoteEditor({ classData, subject, onNavigate, onRefreshClass }) {
             </div>
             <div
               className="editor-note-bullet"
-              style={{ background: subject.color || 'var(--accent-purple)' }}
+              style={{ background: subject?.color || 'var(--accent-purple)' }}
             />
             <div className="editor-note-content">
               <div

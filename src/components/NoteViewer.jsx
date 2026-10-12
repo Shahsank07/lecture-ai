@@ -78,12 +78,15 @@ function NoteViewer({ classData = {}, subject = {}, onNavigate }) {
     try {
       const res = await summarizeNotes(safeClassData.notes || [], safeClassData.transcript || '');
       setSummary(res);
+      if (safeClassData.id && res) {
+        await saveClass({ ...safeClassData, summary: res });
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setIsSummarizing(false);
     }
-  }, [safeClassData.notes, safeClassData.transcript]);
+  }, [safeClassData]);
 
   // Generate concept map from notes
   const generateConceptMap = useCallback(() => {

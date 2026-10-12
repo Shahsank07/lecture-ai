@@ -6,23 +6,35 @@ import { getTopicPreset } from '../utils/topicThemes';
 import './SubjectView.css';
 
 function SubjectView({ subject, onNavigate, onRefresh }) {
+  const safeSubject = subject || {
+    id: 'sub-dsa',
+    name: 'Data Structures',
+    emoji: '📚',
+    topicPreset: 'studio',
+    color: '#7C3AED'
+  };
+
   const [classes, setClasses] = useState([]);
 
   const loadClasses = async () => {
-    const cls = await getClassesBySubject(subject.id);
-    setClasses(cls);
+    try {
+      const cls = await getClassesBySubject(safeSubject.id);
+      setClasses(cls || []);
+    } catch (e) {
+      console.warn('Error loading classes for subject:', e);
+    }
   };
 
   useEffect(() => {
     loadClasses();
-  }, [subject.id]);
+  }, [safeSubject.id]);
 
   const handleNewClass = async () => {
     const classNumber = classes.length + 1;
     const newClass = {
       id: generateId(),
-      subjectId: subject.id,
-      title: `Class ${classNumber}`,
+      subjectId: safeSubject.id,
+      title: `${safeSubject.name} - Class ${classNumber}`,
       date: new Date().toISOString(),
       transcript: '',
       notes: [],
@@ -37,7 +49,34 @@ function SubjectView({ subject, onNavigate, onRefresh }) {
     onNavigate(`session:${classId}`);
   };
 
-  const handleViewNotes = (classId) => {
+  const DEMO_CLASSES = [
+    {
+      id: 'cls-dbms-norm',
+      subjectId: safeSubject.id,
+      title: 'Database Normalization (1NF to 3NF)',
+      date: new Date().toISOString(),
+      duration: 2556,
+      status: 'completed'
+    },
+    {
+      id: 'cls-dsa-trees',
+      subjectId: safeSubject.id,
+      title: 'Stacks and Queues',
+      date: new Date(Date.now() - 86400000).toISOString(),
+      duration: 1840,
+      status: 'completed'
+    },
+    {
+      id: 'cls-os-sync',
+      subjectId: safeSubject.id,
+      title: 'Process Synchronization',
+      date: new Date(Date.now() - 172800000).toISOString(),
+      duration: 2100,
+      status: 'completed'
+    }
+  ];
+
+  const handleViewNotes = async (classId) => {
     onNavigate(`notes:${classId}`);
   };
 
@@ -50,22 +89,15 @@ function SubjectView({ subject, onNavigate, onRefresh }) {
   };
 
   const handleDeleteSubject = async () => {
-    if (confirm(`Delete "${subject.name}" and all its classes? This cannot be undone.`)) {
-      await deleteSubject(subject.id);
-      onRefresh();
+    if (confirm(`Delete "${safeSubject.name}" and all its classes? This cannot be undone.`)) {
+      await deleteSubject(safeSubject.id);
+      if (onRefresh) onRefresh();
       onNavigate('dashboard');
     }
   };
 
   const lastPausedClass = classes.find((c) => c.status === 'paused' || c.status === 'recording');
-  const topicTheme = getTopicPreset(subject.topicPreset || subject.name);
-
-  const DEMO_CLASSES = [
-    { id: 'demo-1', subjectId: subject.id, title: 'Binary Search Trees & Traversal', date: new Date().toISOString(), duration: 2556, status: 'completed' },
-    { id: 'demo-2', subjectId: subject.id, title: 'Tree Balancing (AVL Trees)', date: new Date(Date.now() - 86400000).toISOString(), duration: 1840, status: 'completed' },
-    { id: 'demo-3', subjectId: subject.id, title: 'Heap Data Structures', date: new Date(Date.now() - 172800000).toISOString(), duration: 2100, status: 'completed' }
-  ];
-
+  const topicTheme = getTopicPreset(safeSubject.topicPreset || safeSubject.name);
   const displayClasses = classes.length > 0 ? classes : DEMO_CLASSES;
 
   return (
@@ -74,7 +106,7 @@ function SubjectView({ subject, onNavigate, onRefresh }) {
         <button className="btn-back" onClick={() => onNavigate('dashboard')} aria-label="Back to Dashboard">
           <ArrowLeft size={20} />
         </button>
-        <span className="nav-title">{subject.name}</span>
+        <span className="nav-title">{safeSubject.name}</span>
       </nav>
 
       <header 
@@ -83,11 +115,11 @@ function SubjectView({ subject, onNavigate, onRefresh }) {
       >
         <div className="subject-header-content">
           <div className="subject-header-title-wrapper">
-            <span className="subject-header-emoji">{subject.emoji}</span>
-            <h1 className="subject-header-title">{subject.name}</h1>
+            <span className="subject-header-emoji">{safeSubject.emoji}</span>
+            <h1 className="subject-header-title">{safeSubject.name}</h1>
           </div>
           <span className="subject-header-badge">
-            {classes.length} {classes.length === 1 ? 'Class' : 'Classes'}
+            {displayClasses.length} {displayClasses.length === 1 ? 'Class' : 'Classes'}
           </span>
         </div>
       </header>

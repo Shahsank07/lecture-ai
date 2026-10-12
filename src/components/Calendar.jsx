@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Mic, Calendar as CalendarIcon, Clock } from 'lucide-react';
 import { getAllClasses, getSchedules, saveSchedule } from '../db';
+import { generateId } from '../utils/helpers';
 import './Calendar.css';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -69,7 +70,7 @@ function Calendar({ subjects, onNavigate }) {
     scheduleDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
 
     const schedule = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       subjectId: newSchedule.subjectId,
       title: newSchedule.title,
       scheduledDate: scheduleDate.toISOString(),

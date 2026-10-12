@@ -17,7 +17,7 @@ import ProgressPage from './components/ProgressPage';
 import FlashcardViewerPage from './components/FlashcardViewerPage';
 import {
   getAllSubjects, getSubject, getClass, saveSubject, saveClass,
-  seedDefaultSubjectsAndClasses
+  getAllClasses, seedDefaultSubjectsAndClasses
 } from './db';
 import { getCurrentUser, logout } from './auth';
 import { generateId } from './utils/helpers';
@@ -54,10 +54,15 @@ function App() {
   }, [loadSubjects]);
 
   const navigate = useCallback(async (newView) => {
+    if (newView === 'live-lecture') {
+      await handleQuickStartRecording();
+      return;
+    }
     if (newView.startsWith('subject:')) {
       const id = newView.split(':')[1];
-      const sub = await getSubject(id);
-      setCurrentSubject(sub);
+      let sub = await getSubject(id);
+      if (!sub) sub = subjects.find(s => s.id === id);
+      setCurrentSubject(sub || subjects[0] || { id, name: 'Subject', emoji: '📚', color: '#7C3AED' });
       setView(newView);
     } else if (newView.startsWith('session:') || newView.startsWith('notes:') || newView.startsWith('edit:')) {
       const id = newView.split(':')[1];
@@ -66,14 +71,33 @@ function App() {
         await seedDefaultSubjectsAndClasses(user.id);
         cls = await getClass(id);
       }
-      if (cls) {
-        let sub = await getSubject(cls.subjectId);
-        if (!sub && subjects.length > 0) {
-          sub = subjects[0];
-        }
-        setCurrentSubject(sub);
-        setCurrentClass(cls);
+      if (!cls) {
+        const allClasses = await getAllClasses();
+        cls = allClasses.find(c => c.id === id || c.id?.startsWith(id) || id?.startsWith(c.id)) || allClasses[0];
       }
+      if (!cls) {
+        cls = {
+          id,
+          subjectId: subjects[0]?.id || 'sub-dsa',
+          title: 'Lecture Session',
+          date: new Date().toISOString(),
+          duration: 2400,
+          status: 'completed',
+          transcript: 'Lecture recording and transcript notes.',
+          notes: [{ id: 'n1', timestamp: 60, text: 'Core lecture principles and discussion points.', highlights: [] }],
+          summary: {
+            overview: 'Comprehensive review of lecture principles, architectural models, and examples.',
+            keyTakeaways: ['Foundational concept established.', 'Practical implementation reviewed.'],
+            cleanNotes: [{ text: 'Key takeaways and summary notes.', timestamp: 60 }]
+          }
+        };
+      }
+      let sub = await getSubject(cls.subjectId);
+      if (!sub && subjects.length > 0) {
+        sub = subjects[0];
+      }
+      setCurrentSubject(sub || { id: 'default', name: 'General Subject', color: '#7C3AED', emoji: '📚' });
+      setCurrentClass(cls);
       setView(newView);
     } else if (newView === 'dashboard') {
       await loadSubjects();
@@ -282,16 +306,14 @@ function App() {
         );
       }
       if (view === 'notes' || view === 'lectures' || view === 'classes') {
-        const targetSub = currentSubject || subjects[0];
-        if (targetSub) {
-          return (
-            <SubjectView
-              subject={targetSub}
-              onNavigate={navigate}
-              onRefresh={refreshSubjects}
-            />
-          );
-        }
+        const targetSub = currentSubject || subjects[0] || { id: 'sub-dsa', name: 'Data Structures', emoji: '📚', color: '#7C3AED' };
+        return (
+          <SubjectView
+            subject={targetSub}
+            onNavigate={navigate}
+            onRefresh={refreshSubjects}
+          />
+        );
       }
       return null;
     };

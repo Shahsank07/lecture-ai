@@ -145,12 +145,14 @@ export default function StudentPanel({
   const handleNavClick = (viewId) => {
     setActiveNav(viewId);
     if (onNavigate) {
-      if (viewId === 'notes') onNavigate('notes');
+      if (viewId === 'dashboard') onNavigate('dashboard');
+      else if (viewId === 'classes' || viewId === 'lectures') onNavigate('classes');
+      else if (viewId === 'notes') onNavigate('notes');
       else if (viewId === 'resources') onNavigate('resources');
-      else if (viewId === 'ai-assistant') onNavigate('ai-assistant');
+      else if (viewId === 'ai-assistant' || viewId === 'messages') onNavigate('ai-assistant');
       else if (viewId === 'progress') onNavigate('progress');
       else if (viewId === 'calendar') onNavigate('calendar');
-      else if (viewId === 'quizzes') onNavigate('quizzes');
+      else if (viewId === 'quizzes' || viewId === 'assignments') onNavigate('quizzes');
     }
   };
 

@@ -91,7 +91,7 @@ app.get('/api/health', (req, res) => {
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Email endpoints
 app.post('/api/email/welcome', async (req, res) => {
@@ -101,8 +101,13 @@ app.post('/api/email/welcome', async (req, res) => {
       return res.status(400).json({ error: 'Email and name are required' });
     }
 
+    if (!resend) {
+      console.warn('Resend API key not configured; skipping email.');
+      return res.json({ success: false, message: 'Email service not configured' });
+    }
+
     const { data, error } = await resend.emails.send({
-      from: 'LectureAI <onboarding@resend.dev>', // Using Resend test domain
+      from: 'LectureAI <onboarding@resend.dev>',
       to: email,
       subject: 'Welcome to LectureAI',
       html: `
@@ -114,14 +119,14 @@ app.post('/api/email/welcome', async (req, res) => {
     });
 
     if (error) {
-      console.error('Resend error:', error);
-      return res.status(400).json({ error });
+      console.warn('Resend delivery notice (may require verified domain/recipient):', error);
+      return res.json({ success: false, error });
     }
 
-    res.status(200).json({ data });
+    res.status(200).json({ success: true, data });
   } catch (err) {
     console.error('Welcome email error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json({ success: false, error: err.message });
   }
 });
 
@@ -132,14 +137,17 @@ app.post('/api/email/class-notification', async (req, res) => {
       return res.status(400).json({ error: 'Class title is required' });
     }
 
-    // In a real app, you would fetch students enrolled in subjectId
-    // Here we'll just use the provided emails or a default
+    if (!resend) {
+      console.warn('Resend API key not configured; skipping email.');
+      return res.json({ success: false, message: 'Email service not configured' });
+    }
+
     const toEmails = recipientEmails && recipientEmails.length > 0 
       ? recipientEmails 
       : ['delivered@resend.dev'];
 
     const { data, error } = await resend.emails.send({
-      from: 'LectureAI <notifications@resend.dev>', // Using Resend test domain
+      from: 'LectureAI <onboarding@resend.dev>',
       to: toEmails,
       subject: `New Lecture Available: ${classTitle}`,
       html: `
@@ -152,14 +160,14 @@ app.post('/api/email/class-notification', async (req, res) => {
     });
 
     if (error) {
-      console.error('Resend error:', error);
-      return res.status(400).json({ error });
+      console.warn('Resend class notice:', error);
+      return res.json({ success: false, error });
     }
 
-    res.status(200).json({ data });
+    res.status(200).json({ success: true, data });
   } catch (err) {
     console.error('Class notification error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.json({ success: false, error: err.message });
   }
 });
 
