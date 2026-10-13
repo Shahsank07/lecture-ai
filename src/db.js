@@ -160,8 +160,11 @@ export async function getClassesBySubject(subjectId) {
   return localClasses;
 }
 
+const MOCK_CLASS_IDS = new Set(['cls-dbms-norm', 'cls-dsa-trees', 'cls-os-sync', 'cls-dbms-er', 'lec-1', 'lec-2', 'lec-3', 'lec-4']);
+
 export async function getClass(id) {
-  const local = getLocal('classes').find(c => c.id === id || c.id?.startsWith(id) || id?.startsWith(c.id));
+  if (MOCK_CLASS_IDS.has(id)) return null;
+  const local = getLocal('classes').filter(c => !MOCK_CLASS_IDS.has(c.id)).find(c => c.id === id || c.id?.startsWith(id) || id?.startsWith(c.id));
   if (local) return local; // Instant return
 
   try {
@@ -169,7 +172,7 @@ export async function getClass(id) {
       supabase.from('classes').select('*').eq('id', id).single(),
       800
     );
-    if (!error && data) {
+    if (!error && data && !MOCK_CLASS_IDS.has(data.id)) {
       return { ...data, subjectId: data.subject_id, audioUrl: data.audio_url, createdAt: data.created_at };
     }
   } catch {}
@@ -316,11 +319,11 @@ export async function deleteClass(id) {
 }
 
 export async function getClassCount(subjectId) {
-  return getLocal('classes').filter(c => c.subjectId === subjectId || c.subject_id === subjectId).length;
+  return getLocal('classes').filter(c => !MOCK_CLASS_IDS.has(c.id) && (c.subjectId === subjectId || c.subject_id === subjectId)).length;
 }
 
 export async function getAllClasses() {
-  const local = getLocal('classes');
+  const local = getLocal('classes').filter(c => !MOCK_CLASS_IDS.has(c.id));
   if (local.length > 0) return local; // Instant return
 
   try {
@@ -329,7 +332,9 @@ export async function getAllClasses() {
       800
     );
     if (!error && data && data.length > 0) {
-      return data.map(cls => ({ ...cls, subjectId: cls.subject_id, audioUrl: cls.audio_url, createdAt: cls.created_at }));
+      return data
+        .map(cls => ({ ...cls, subjectId: cls.subject_id, audioUrl: cls.audio_url, createdAt: cls.created_at }))
+        .filter(c => !MOCK_CLASS_IDS.has(c.id));
     }
   } catch {}
   return local;
@@ -545,77 +550,74 @@ export async function seedDefaultSubjectsAndClasses(userId) {
   ];
 
   setLocal('subjects', defaultSubs);
-
-  const sampleClasses = [
-    {
-      id: 'cls-dbms-norm', subjectId: 'sub-dbms',
-      title: 'Database Normalization (1NF to 3NF)',
-      date: new Date(Date.now() - 86400000).toISOString(), duration: 2720, status: 'completed',
-      transcript: 'In today\'s lecture we discussed database normalization. First Normal Form requires atomic values. Second Normal Form eliminates partial dependencies. Third Normal Form removes transitive dependencies.',
-      notes: [
-        { id: 'n1', timestamp: 120, text: 'First Normal Form (1NF): Atomic values, unique records.', highlights: [] },
-        { id: 'n2', timestamp: 450, text: 'Second Normal Form (2NF): No partial dependency on composite key.', highlights: [] },
-        { id: 'n3', timestamp: 890, text: 'Third Normal Form (3NF): No transitive dependencies.', highlights: [] }
-      ],
-      summary: {
-        overview: 'Database Normalization minimizes redundancy and prevents anomalies by progressing through 1NF, 2NF, and 3NF.',
-        keyTakeaways: ['1NF ensures atomicity.', '2NF removes partial dependencies.', '3NF eliminates transitive dependencies.', 'BCNF enforces every determinant is a candidate key.'],
-        cleanNotes: [{ text: 'Functional dependency constrains attribute relationships.', timestamp: 120 }, { text: 'Anomalies prevented: update, insertion, deletion.', timestamp: 450 }]
-      },
-      flashcards: [
-        { id: '1', question: 'What violates 2NF?', answer: 'A partial dependency on a composite key.' },
-        { id: '2', question: 'What is a transitive dependency?', answer: 'A non-key attribute depends on another non-key attribute.' }
-      ]
-    },
-    {
-      id: 'cls-dsa-trees', subjectId: 'sub-dsa',
-      title: 'Stacks and Queues',
-      date: new Date(Date.now() - 86400000 * 2).toISOString(), duration: 2295, status: 'completed',
-      transcript: 'Stacks follow LIFO order. Queues follow FIFO order. Both support O(1) operations.',
-      notes: [
-        { id: 'n4', timestamp: 90, text: 'Stack: LIFO — push/pop in O(1). Used in recursion, undo ops.', highlights: [] },
-        { id: 'n5', timestamp: 320, text: 'Queue: FIFO — enqueue/dequeue in O(1). Used in BFS, scheduling.', highlights: [] }
-      ],
-      summary: {
-        overview: 'Stacks (LIFO) and Queues (FIFO) are fundamental linear data structures.',
-        keyTakeaways: ['Stack push/pop are O(1).', 'Queue enqueue/dequeue are O(1).', 'BFS uses Queues.', 'DFS uses Stacks.']
-      },
-      flashcards: [
-        { id: '1', question: 'What order do stacks follow?', answer: 'Last-In-First-Out (LIFO).' },
-        { id: '2', question: 'Queue enqueue time complexity?', answer: 'O(1) constant time.' }
-      ]
-    },
-    {
-      id: 'cls-os-sync', subjectId: 'sub-os',
-      title: 'Process Synchronization',
-      date: new Date(Date.now() - 86400000 * 3).toISOString(), duration: 3130, status: 'completed',
-      transcript: 'Process synchronization addresses the critical section problem. Semaphores and mutexes provide mutual exclusion.',
-      notes: [
-        { id: 'n6', timestamp: 100, text: 'Critical section requires mutual exclusion, progress, bounded waiting.', highlights: [] },
-        { id: 'n7', timestamp: 400, text: 'Semaphores: wait() and signal() atomic operations.', highlights: [] }
-      ],
-      summary: {
-        overview: 'Process synchronization ensures safe concurrent access to shared resources.',
-        keyTakeaways: ['Mutual exclusion: one process in critical section at a time.', 'Deadlock: processes wait indefinitely for each other\'s resources.']
-      },
-      flashcards: [{ id: '1', question: 'Three requirements for critical section?', answer: 'Mutual exclusion, progress, bounded waiting.' }]
-    },
-    {
-      id: 'cls-dbms-er', subjectId: 'sub-dbms',
-      title: 'ER Model and Relationships',
-      date: new Date(Date.now() - 86400000 * 4).toISOString(), duration: 2465, status: 'completed',
-      transcript: 'Entity-Relationship modeling depicts conceptual database schemas using entities, attributes, and relationships.',
-      notes: [
-        { id: 'n8', timestamp: 150, text: 'Entity sets contain distinct objects described by attributes.', highlights: [] }
-      ],
-      summary: {
-        overview: 'ER Modeling creates logical blueprints mapping entity relationships into relational tables.',
-        keyTakeaways: ['Primary keys uniquely identify entities.', 'M:N relationships use junction tables.']
-      },
-      flashcards: [{ id: '1', question: 'How is M:N represented in SQL?', answer: 'Through an associative junction table with foreign keys to both entities.' }]
-    }
-  ];
-
-  setLocal('classes', sampleClasses);
   return defaultSubs;
+}
+
+// ─── Announcements ───────────────────────────────────
+export async function getAllAnnouncements(user) {
+  const local = getLocal('announcements');
+  return local;
+}
+
+export async function saveAnnouncement(announcement) {
+  if (!announcement.id) announcement.id = 'ann-' + Date.now();
+  if (!announcement.date) announcement.date = new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (!announcement.time) announcement.time = 'Just now';
+  if (!announcement.createdAt) announcement.createdAt = new Date().toISOString();
+  if (!announcement.color) announcement.color = '#F59E0B';
+  if (!announcement.badgeClass) announcement.badgeClass = 'amber-badge';
+  if (!announcement.category) announcement.category = 'department';
+  if (!announcement.categoryLabel) announcement.categoryLabel = 'Notice';
+  if (!announcement.author) announcement.author = 'Faculty Instructor';
+
+  const local = getLocal('announcements');
+  const idx = local.findIndex(a => a.id === announcement.id);
+  if (idx >= 0) {
+    local[idx] = { ...local[idx], ...announcement };
+  } else {
+    local.unshift(announcement);
+  }
+  setLocal('announcements', local);
+  return announcement;
+}
+
+export async function deleteAnnouncement(id) {
+  const local = getLocal('announcements').filter(a => a.id !== id);
+  setLocal('announcements', local);
+}
+
+// ─── Bookmarks ───────────────────────────────────────
+export async function getAllBookmarks(userId) {
+  const local = getLocal('bookmarks');
+  if (!userId) return local;
+  return local.filter(b => !b.userId || b.userId === userId);
+}
+
+export async function toggleBookmark(item, userId) {
+  const local = getLocal('bookmarks');
+  const existingIdx = local.findIndex(b => b.id === item.id);
+  if (existingIdx >= 0) {
+    local.splice(existingIdx, 1);
+    setLocal('bookmarks', local);
+    return false; // unbookmarked
+  } else {
+    const newBookmark = {
+      ...item,
+      userId: userId || 'student-arjun-sharma',
+      savedAt: new Date().toISOString()
+    };
+    local.unshift(newBookmark);
+    setLocal('bookmarks', local);
+    return true; // bookmarked
+  }
+}
+
+export async function isBookmarked(itemId, userId) {
+  const local = getLocal('bookmarks');
+  return local.some(b => b.id === itemId && (!userId || !b.userId || b.userId === userId));
+}
+
+export async function deleteBookmark(id) {
+  const local = getLocal('bookmarks').filter(b => b.id !== id);
+  setLocal('bookmarks', local);
 }

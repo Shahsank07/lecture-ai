@@ -7,7 +7,7 @@ import {
   Search, ArrowRight, BookMarked, UserCheck, BarChart3,
   Video, UploadCloud, FileText, CheckCircle2, X
 } from 'lucide-react';
-import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources, getAllAssignments, deleteAssignment } from '../../db';
+import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources, getAllAssignments, deleteAssignment, getAllAnnouncements, saveAnnouncement, deleteAnnouncement } from '../../db';
 import UploadNotesModal from './UploadNotesModal';
 import UploadQuizModal from './UploadQuizModal';
 import MarkAttendanceModal from './MarkAttendanceModal';
@@ -43,22 +43,7 @@ export default function FacultyPanel({
   // Interactive Announcements State
   const [announcementText, setAnnouncementText] = useState('');
   const [announcementTitle, setAnnouncementTitle] = useState('');
-  const [announcementsList, setAnnouncementsList] = useState(isDemo ? [
-    {
-      id: 'ann-1',
-      title: 'Mid Sem Exams Schedule Announcement',
-      text: 'Mid semester examinations for B.Tech CSE (3rd and 4th Sem) will commence from next Monday. Please review the syllabus outline.',
-      classGroup: 'All Classes',
-      time: '2 hours ago'
-    },
-    {
-      id: 'ann-2',
-      title: 'DSA Assignment 2 Problem Set Posted',
-      text: 'The problem set on AVL Tree Rotations and B-Trees is now live on the student portal. Due date is May 25.',
-      classGroup: 'Data Structures (3rd Sem)',
-      time: '1 day ago'
-    }
-  ] : []);
+  const [announcementsList, setAnnouncementsList] = useState([]);
 
   // ─── Real data loading for non-demo users ───────────
   const [realSubjects, setRealSubjects] = useState([]);
@@ -75,6 +60,15 @@ export default function FacultyPanel({
     }
   };
 
+  const loadAnnouncementsData = async () => {
+    try {
+      const anns = await getAllAnnouncements(user);
+      setAnnouncementsList(anns || []);
+    } catch (e) {
+      console.warn('Failed to load announcements:', e);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -87,6 +81,7 @@ export default function FacultyPanel({
       }
     })();
     loadAssignmentsData();
+    loadAnnouncementsData();
   }, [user]);
 
   useEffect(() => {
@@ -241,17 +236,18 @@ export default function FacultyPanel({
     setCustomLectureName('');
   };
 
-  const handlePostAnnouncement = (e) => {
+  const handlePostAnnouncement = async (e) => {
     e.preventDefault();
     if (!announcementTitle.trim()) return;
-    const newAnn = {
-      id: 'ann-' + Date.now(),
+    const created = await saveAnnouncement({
       title: announcementTitle.trim(),
       text: announcementText.trim() || 'Please check the course portal for full details.',
-      classGroup: 'Data Structures & DBMS',
+      content: announcementText.trim() || 'Please check the course portal for full details.',
+      classGroup: 'All Classes',
+      author: user?.name ? `${user.name} (${user.department || 'Faculty'})` : 'Dr. Alex Johnson',
       time: 'Just now'
-    };
-    setAnnouncementsList(prev => [newAnn, ...prev]);
+    });
+    setAnnouncementsList(prev => [created, ...prev]);
     setAnnouncementTitle('');
     setAnnouncementText('');
   };
@@ -961,11 +957,24 @@ export default function FacultyPanel({
                       <div key={ann.id} style={{ background: '#13192B', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <strong style={{ color: '#FFFFFF', fontSize: '14px' }}>{ann.title}</strong>
-                          <span style={{ fontSize: '11px', color: '#818CF8' }}>{ann.time}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '11px', color: '#818CF8' }}>{ann.time}</span>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await deleteAnnouncement(ann.id);
+                                setAnnouncementsList(prev => prev.filter(a => a.id !== ann.id));
+                              }}
+                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '2px' }}
+                              title="Delete Announcement"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
                         </div>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 8px 0', lineHeight: '1.4' }}>{ann.text}</p>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 8px 0', lineHeight: '1.4' }}>{ann.text || ann.content}</p>
                         <span style={{ fontSize: '10px', background: 'rgba(99,102,241,0.15)', color: '#A5B4FC', padding: '2px 8px', borderRadius: '4px' }}>
-                          {ann.classGroup}
+                          {ann.classGroup || 'All Classes'}
                         </span>
                       </div>
                     ))

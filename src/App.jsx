@@ -17,6 +17,7 @@ import ProgressPage from './components/ProgressPage';
 import FlashcardViewerPage from './components/FlashcardViewerPage';
 import AssignmentsPage from './components/AssignmentsPage';
 import AnnouncementsPage from './components/AnnouncementsPage';
+import BookmarksPage from './components/BookmarksPage';
 import ClassesPage from './components/ClassesPage';
 import {
   getAllSubjects, getSubject, getClass, saveSubject, saveClass,
@@ -312,7 +313,7 @@ function App() {
         return <Calendar subjects={subjects} onNavigate={navigate} />;
       }
       if (view === 'resources') {
-        return <ResourcesPage onNavigate={navigate} />;
+        return <ResourcesPage user={user} onNavigate={navigate} />;
       }
       if (view === 'ai-assistant') {
         return <AIAssistantPage onNavigate={navigate} />;
@@ -324,7 +325,10 @@ function App() {
         return <AssignmentsPage user={user} onNavigate={navigate} />;
       }
       if (view === 'announcements') {
-        return <AnnouncementsPage onNavigate={navigate} />;
+        return <AnnouncementsPage user={user} onNavigate={navigate} />;
+      }
+      if (view === 'bookmarks') {
+        return <BookmarksPage user={user} onNavigate={navigate} />;
       }
       if (view === 'quizzes' || view === 'flashcards') {
         return (

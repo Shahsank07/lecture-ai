@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
 import {
   BookOpen, Video, FileText, Plus, Search, Calendar,
   Clock, Play, ArrowRight, FolderOpen, Sparkles, CheckCircle2,
-  Key, Users, AlertCircle, Check
+  Key, Users, AlertCircle, Check, Bookmark
 } from 'lucide-react';
 import SubjectCard from './SubjectCard';
-import { getAllClasses, joinLectureByCode, getJoinedLectures } from '../db';
+import { getAllClasses, joinLectureByCode, getJoinedLectures, getAllSavedResources, toggleBookmark, isBookmarked } from '../db';
 import { formatDuration, formatDate } from '../utils/helpers';
 import './ClassesPage.css';
 
@@ -17,6 +16,8 @@ export default function ClassesPage({
   onCreateClass
 }) {
   const [allLectures, setAllLectures] = useState([]);
+  const [uploadedNotesList, setUploadedNotesList] = useState([]);
+  const [bookmarkedMap, setBookmarkedMap] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState(viewType);
   const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ export default function ClassesPage({
     try {
       const cls = await getAllClasses();
       const joined = await getJoinedLectures(user);
+      const savedRes = await getAllSavedResources();
       
       const mergedMap = new Map();
       (cls || []).forEach(c => mergedMap.set(c.id, c));
@@ -54,6 +56,33 @@ export default function ClassesPage({
       });
       enriched.sort((a, b) => new Date(b.date) - new Date(a.date));
       setAllLectures(enriched);
+
+      // Convert uploaded faculty note resources into note items
+      const noteResources = (savedRes || []).filter(r =>
+        (r.files && r.files.length > 0) || (r.extractedPoints && r.extractedPoints.length > 0) || r.overview || r.description
+      ).map(r => ({
+        id: r.id,
+        title: r.title,
+        subjectName: r.subject || r.classGroup || 'Course Notes',
+        subjectEmoji: '📄',
+        subjectColor: '#10B981',
+        date: r.createdAt || new Date().toISOString(),
+        summary: {
+          overview: r.overview || r.description,
+          keyTakeaways: r.extractedPoints || r.keyTakeaways || []
+        },
+        notes: (r.extractedPoints || []).map((p, idx) => ({ id: `p-${idx}`, text: p })),
+        isUploadedResource: true,
+        resourceData: r
+      }));
+      setUploadedNotesList(noteResources);
+
+      // Check bookmarks
+      const bMap = {};
+      for (const item of [...enriched, ...noteResources]) {
+        bMap[item.id] = await isBookmarked(item.id, user?.id);
+      }
+      setBookmarkedMap(bMap);
     } catch (err) {
       console.warn('Error fetching lectures:', err);
     } finally {
@@ -64,6 +93,20 @@ export default function ClassesPage({
   useEffect(() => {
     fetchLectures();
   }, [fetchLectures]);
+
+  const handleToggleBookmark = async (e, item, type) => {
+    e.stopPropagation();
+    const isNow = await toggleBookmark({
+      id: item.id,
+      title: item.title,
+      type: type || 'note',
+      subject: item.subjectName || item.subject,
+      description: item.summary?.overview || item.notes?.[0]?.text || item.description,
+      targetId: item.id,
+      date: item.date || item.createdAt
+    }, user?.id);
+    setBookmarkedMap(prev => ({ ...prev, [item.id]: isNow }));
+  };
 
   const handleJoinLecture = async (e) => {
     e.preventDefault();
@@ -96,8 +139,16 @@ export default function ClassesPage({
     (l.subjectName && l.subjectName.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const filteredNotes = filteredLectures.filter(
-    (l) => (l.notes && l.notes.length > 0) || (l.summary && (l.summary.overview || l.summary.keyTakeaways))
+  const filteredNotes = [
+    ...allLectures.filter(
+      (l) => (l.notes && l.notes.length > 0) || (l.summary && (l.summary.overview || l.summary.keyTakeaways))
+    ),
+    ...uploadedNotesList
+  ].filter(
+    (n) =>
+      (n.title && n.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (n.subjectName && n.subjectName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (n.summary?.overview && n.summary.overview.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -327,6 +378,22 @@ export default function ClassesPage({
                         <span className={`status-pill ${lec.status}`}>
                           {lec.status === 'completed' ? 'Completed' : 'In Progress'}
                         </span>
+                        <button
+                          className="btn-card-bookmark"
+                          onClick={(e) => handleToggleBookmark(e, lec, 'lecture')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: bookmarkedMap[lec.id] ? '#38BDF8' : '#64748B',
+                            cursor: 'pointer',
+                            padding: '2px 4px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title={bookmarkedMap[lec.id] ? 'Remove Bookmark' : 'Bookmark Lecture'}
+                        >
+                          <Bookmark size={15} fill={bookmarkedMap[lec.id] ? '#38BDF8' : 'none'} />
+                        </button>
                       </div>
                     </div>
 
@@ -375,8 +442,21 @@ export default function ClassesPage({
               <p>
                 {searchQuery
                   ? 'No notes match your search term.'
-                  : 'Notes, AI summaries, and flashcards generated from your lectures will appear here.'}
+                  : user?.role === 'student'
+                    ? 'Notes and AI summaries will appear here once your faculty records a live lecture or uploads study handouts.'
+                    : 'Record a live lecture or upload study notes/PDFs to generate smart notes and AI summaries for your students.'}
               </p>
+              {user?.role !== 'student' && (
+                <div style={{ display: 'flex', gap: '10px', marginTop: '16px', justifyContent: 'center' }}>
+                  <button
+                    className="btn-create-first-class"
+                    onClick={() => onNavigate('live-lecture')}
+                  >
+                    <Video size={18} />
+                    <span>Start Live Lecture</span>
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="notes-cards-grid">
@@ -384,13 +464,30 @@ export default function ClassesPage({
                 <div
                   key={noteLec.id}
                   className="note-item-card"
-                  onClick={() => onNavigate(`notes:${noteLec.id}`)}
+                  onClick={() => onNavigate(noteLec.isUploadedResource ? 'resources' : `notes:${noteLec.id}`)}
                 >
                   <div className="note-card-top">
                     <span className="note-sub-tag">
                       {noteLec.subjectEmoji} {noteLec.subjectName}
                     </span>
                     <span className="note-date">{formatDate(noteLec.date)}</span>
+                    <button
+                      className="btn-card-bookmark"
+                      onClick={(e) => handleToggleBookmark(e, noteLec, 'note')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: bookmarkedMap[noteLec.id] ? '#C084FC' : '#64748B',
+                        cursor: 'pointer',
+                        padding: '2px 4px',
+                        marginLeft: 'auto',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title={bookmarkedMap[noteLec.id] ? 'Remove Bookmark' : 'Bookmark Note'}
+                    >
+                      <Bookmark size={15} fill={bookmarkedMap[noteLec.id] ? '#C084FC' : 'none'} />
+                    </button>
                   </div>
 
                   <h3 className="note-title">{noteLec.title}</h3>

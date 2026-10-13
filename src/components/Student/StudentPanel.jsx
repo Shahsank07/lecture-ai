@@ -6,7 +6,7 @@ import {
   Bell, Play, Download, MoreVertical, Clock, MapPin,
   ChevronRight, ArrowRight, CheckCircle2, AlertCircle
 } from 'lucide-react';
-import { getAllAssignments } from '../../db';
+import { getAllAssignments, getAllAnnouncements, getAllClasses, getJoinedLectures, getAllBookmarks } from '../../db';
 import NotificationsModal from '../NotificationsModal';
 import './StudentPanel.css';
 
@@ -64,133 +64,70 @@ export default function StudentPanel({
     }
   ] : [];
 
-  const recentLectures = isDemo ? [
-    {
-      id: 'lec-1',
-      title: 'Database Normalization (1NF to 3NF)',
-      course: 'Database Management Systems',
-      date: '19 May 2025',
-      duration: '45:20',
-      thumb: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=300&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'lec-2',
-      title: 'Stacks and Queues',
-      course: 'Data Structures',
-      date: '18 May 2025',
-      duration: '38:15',
-      thumb: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'lec-3',
-      title: 'Process Synchronization',
-      course: 'Operating Systems',
-      date: '17 May 2025',
-      duration: '52:10',
-      thumb: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=300&auto=format&fit=crop&q=80'
-    },
-    {
-      id: 'lec-4',
-      title: 'ER Model and Relationships',
-      course: 'Database Management Systems',
-      date: '16 May 2025',
-      duration: '41:05',
-      thumb: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=300&auto=format&fit=crop&q=80'
-    }
-  ] : [];
-
   const [studentAssignments, setStudentAssignments] = useState([]);
+  const [studentAnnouncements, setStudentAnnouncements] = useState([]);
+  const [studentLectures, setStudentLectures] = useState([]);
+  const [bookmarksCount, setBookmarksCount] = useState(0);
 
   useEffect(() => {
     (async () => {
       try {
         const asgs = await getAllAssignments(user);
         setStudentAssignments(asgs || []);
+
+        const anns = await getAllAnnouncements(user);
+        setStudentAnnouncements(anns || []);
+
+        const cls = await getAllClasses();
+        const joined = await getJoinedLectures(user);
+        const mergedMap = new Map();
+        (cls || []).forEach(c => mergedMap.set(c.id, c));
+        (joined || []).forEach(j => mergedMap.set(j.id, j));
+        setStudentLectures(Array.from(mergedMap.values()));
+
+        const bms = await getAllBookmarks(user?.id);
+        setBookmarksCount((bms || []).length);
       } catch (e) {
-        console.warn('StudentPanel assignments load:', e);
+        console.warn('StudentPanel data load:', e);
       }
     })();
   }, [user]);
 
-  // Combine demo defaults with any real published assignments from faculty
-  const upcomingDeadlines = studentAssignments.length > 0
-    ? studentAssignments.map(a => ({
-        id: a.id,
-        title: a.title,
-        course: a.course || a.classGroup || 'Coursework',
-        due: a.dueDate,
-        daysLeft: a.daysLeft || 'Due Soon',
-        urgency: a.urgency || 'warning'
-      }))
-    : (isDemo ? [
-        {
-          id: 'dl-1',
-          title: 'DSA Assignment 2',
-          course: 'Data Structures',
-          due: '22 May 2025',
-          daysLeft: '2 Days Left',
-          urgency: 'danger'
-        },
-        {
-          id: 'dl-2',
-          title: 'DBMS Quiz 1',
-          course: 'Database Management Systems',
-          due: '25 May 2025',
-          daysLeft: '5 Days Left',
-          urgency: 'warning'
-        },
-        {
-          id: 'dl-3',
-          title: 'OS Case Study',
-          course: 'Operating Systems',
-          due: '28 May 2025',
-          daysLeft: '8 Days Left',
-          urgency: 'safe'
-        }
-      ] : []);
+  const recentLectures = studentLectures.slice(0, 5).map(l => {
+    const sub = subjects.find(s => s.id === l.subjectId);
+    return {
+      id: l.id,
+      title: l.title,
+      course: sub?.name || l.subjectName || 'Lecture Session',
+      date: l.date ? new Date(l.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent',
+      duration: l.duration ? `${Math.floor(l.duration / 60)}:${String(l.duration % 60).padStart(2, '0')}` : '45:00',
+      thumb: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=300&auto=format&fit=crop&q=80'
+    };
+  });
 
-  const announcements = isDemo ? [
-    {
-      id: 'ann-1',
-      title: 'Mid Sem Exams Schedule',
-      desc: 'Mid semester examinations will start from next Monday. Check room allocations...',
-      time: '2 hours ago',
-      color: '#EF4444'
-    },
-    {
-      id: 'ann-2',
-      title: 'Data Structures Assignment',
-      desc: 'New assignment has been posted. Please review the problem statements...',
-      time: '1 day ago',
-      color: '#F59E0B'
-    },
-    {
-      id: 'ann-3',
-      title: 'Guest Lecture on AI',
-      desc: 'Join the session on Artificial Intelligence and Large Language Models...',
-      time: '2 days ago',
-      color: '#10B981'
-    }
-  ] : [
-    {
-      id: 'ann-welcome',
-      title: 'Welcome to LectureAI! 🎓',
-      desc: 'Your smart lecture recording, notes, and AI study companion.',
-      time: 'Just now',
-      color: '#7C3AED'
-    }
-  ];
+  const upcomingDeadlines = studentAssignments.map(a => ({
+    id: a.id,
+    title: a.title,
+    course: a.course || a.classGroup || 'Coursework',
+    due: a.dueDate,
+    daysLeft: a.daysLeft || 'Due Soon',
+    urgency: a.urgency || 'warning'
+  }));
 
-  const classesCount = isDemo ? 5 : (subjects?.length || user?.enrolledClassesCount || 0);
-  const lecturesCount = isDemo ? 12 : 0;
-  const assignmentsCount = studentAssignments.length > 0
-    ? studentAssignments.length
-    : (isDemo ? 8 : 0);
-  const pendingCount = studentAssignments.length > 0
-    ? studentAssignments.filter(a => a.status === 'pending').length
-    : (isDemo ? 2 : 0);
-  const progressPercent = isDemo ? '75%' : '0%';
-  const progressSub = isDemo ? 'Keep it up!' : 'Start learning';
+  const announcements = studentAnnouncements.map(a => ({
+    id: a.id,
+    title: a.title,
+    desc: a.content || a.text || 'Important course notification.',
+    time: a.time || a.date || 'Recent',
+    color: a.color || '#F59E0B'
+  }));
+
+  const classesCount = subjects?.length || user?.enrolledClassesCount || 0;
+  const lecturesCount = studentLectures.length;
+  const assignmentsCount = studentAssignments.length;
+  const pendingCount = studentAssignments.filter(a => a.status === 'pending').length;
+  const progressPercent = studentLectures.length > 0 ? `${Math.min(100, studentLectures.length * 20)}%` : '0%';
+  const progressSub = studentLectures.length > 0 ? 'Keep it up!' : 'Start learning';
 
   const handleNavClick = (viewId) => {
     setActiveNav(viewId);
@@ -206,6 +143,7 @@ export default function StudentPanel({
       else if (viewId === 'assignments') onNavigate('assignments');
       else if (viewId === 'announcements') onNavigate('announcements');
       else if (viewId === 'quizzes') onNavigate('quizzes');
+      else if (viewId === 'bookmarks') onNavigate('bookmarks');
     }
   };
 
@@ -332,6 +270,7 @@ export default function StudentPanel({
           >
             <Bookmark size={18} />
             <span>Bookmarks</span>
+            {bookmarksCount > 0 && <span className="nav-count-badge">{bookmarksCount}</span>}
           </button>
 
           <button

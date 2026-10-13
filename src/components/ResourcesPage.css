@@ -113,3 +113,34 @@
 .ext-link-icon {
   color: #8f66ff;
 }
+
+.empty-resources-box {
+  background: #0E1322;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 60px 24px;
+  text-align: center;
+  color: #94A3B8;
+  margin: 10px 0;
+}
+
+.empty-resources-box .empty-icon {
+  margin: 0 auto 16px;
+  color: #7C3AED;
+  opacity: 0.4;
+}
+
+.empty-resources-box h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #F8FAFC;
+  margin: 0 0 8px 0;
+}
+
+.empty-resources-box p {
+  font-size: 14px;
+  color: #64748B;
+  max-width: 440px;
+  margin: 0 auto;
+  line-height: 1.5;
+}

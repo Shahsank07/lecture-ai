@@ -285,3 +285,34 @@
   color: #34D399;
   border-color: rgba(16, 185, 129, 0.2);
 }
+
+.empty-announcements-box {
+  background: #111422;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 60px 24px;
+  text-align: center;
+  color: #94A3B8;
+  margin-top: 10px;
+}
+
+.empty-announcements-box .empty-icon {
+  margin: 0 auto 16px;
+  color: #F59E0B;
+  opacity: 0.4;
+}
+
+.empty-announcements-box h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #F8FAFC;
+  margin: 0 0 8px 0;
+}
+
+.empty-announcements-box p {
+  font-size: 14px;
+  color: #64748B;
+  max-width: 440px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
