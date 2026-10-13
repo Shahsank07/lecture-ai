@@ -32,7 +32,7 @@ class SpeechEngine {
     this.recognition = new SpeechRecognition();
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
-    this.recognition.lang = 'en-US';
+    this.recognition.lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en-US';
     this.recognition.maxAlternatives = 1;
 
     this.recognition.onresult = (event) => {
@@ -62,10 +62,11 @@ class SpeechEngine {
         return;
       }
       if (event.error === 'network') {
-        // Stop tight restart loop when browser (e.g. Brave) blocks Google cloud speech
-        this.shouldRestart = false;
+        // In Brave or intermittent network, keep shouldRestart true with small delay
+        console.warn('SpeechRecognition network note, will retry when speaking.');
+      } else {
+        console.warn('SpeechRecognition error:', event.error);
       }
-      console.warn('SpeechRecognition error:', event.error);
       if (this.onError) {
         this.onError(event.error);
       }

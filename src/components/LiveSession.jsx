@@ -237,56 +237,53 @@ const DEFAULT_RESOURCES = [
   { type: 'doc', title: 'Wikipedia', source: 'Wikimedia', url: 'https://en.wikipedia.org/' },
 ];
 
-// ─── Real-time Curriculum Transcripts (Academic Audio Streamer) ───
-// Used for high-speed voice streaming and fallback in browsers (e.g. Brave)
-// where third-party speech cloud endpoints are sandboxed or offline.
-const LECTURE_CURRICULUM = {
-  ml: [
-    "Welcome everyone. Today we are exploring Machine Learning fundamentals, specifically supervised learning and neural networks.",
-    "Supervised learning algorithms infer a mathematical mapping function from labeled training data containing input features and targets.",
-    "In deep learning architectures, Convolutional Neural Networks apply filter kernels to capture spatial hierarchies in visual features.",
-    "Pooling layers, such as max pooling and average pooling, progressively downsample spatial dimensions to reduce computation and prevent overfitting.",
-    "Backpropagation computes the gradient of the objective loss function with respect to each model weight using the mathematical chain rule.",
-    "Gradient descent optimization iteratively updates model weights along the steepest descent direction dictated by the calculated learning rate.",
-    "Decision tree algorithms recursively partition feature space into homogenous regions using information gain or Gini impurity criteria.",
-    "Random forest ensemble methods aggregate multiple decorrelated bootstrap decision trees through bagging to drastically reduce variance.",
-    "Modern transformer architectures utilize multi-head self-attention mechanisms to effectively model long-range sequential relationships.",
-    "Regularization techniques including dropout, L2 weight decay, and batch normalization are essential to ensure generalizability on test datasets."
-  ],
-  dsa: [
-    "Welcome class. Today we are diving into advanced Data Structures and algorithmic time complexity analysis.",
-    "Balanced search trees like AVL trees guarantee logarithmic O(log n) time complexity for search, insertion, and deletion operations.",
-    "In an AVL tree, the balance factor of every node is strictly maintained between negative one, zero, and positive one.",
-    "Breadth-first search and depth-first search explore graph topologies using queues and recursion stacks respectively.",
-    "Dynamic programming decomposes optimization problems into overlapping subproblems with optimal substructure properties.",
-    "Hash tables achieve average O(1) constant time lookups using hash functions with collision resolution strategies like chaining.",
-    "Divide-and-conquer sorting algorithms such as Merge Sort and Quick Sort achieve optimal O(n log n) comparison bounds.",
-    "Priority queues and binary heaps provide efficient logarithmic implementations for greedy graph algorithms such as Dijkstra's."
-  ],
-  dbms: [
-    "Today's lecture focuses on Database Management Systems, relational schema design, and ACID transaction guarantees.",
-    "Database normalization eliminates data redundancy and prevents insertion, update, and deletion anomalies across relational tables.",
-    "The first three normal forms, 1NF, 2NF, and 3NF, progressively enforce atomic values and eliminate partial and transitive functional dependencies.",
-    "ACID properties—Atomicity, Consistency, Isolation, and Durability—guarantee reliable transaction execution across distributed database engines.",
-    "B-Tree and B+Tree indexing structures optimize disk read input-output operations for high-throughput range queries in SQL databases.",
-    "Query execution planners translate declarative SQL statements into relational algebra trees and determine optimal join algorithms."
-  ],
-  general: [
-    "Welcome to today's lecture session. We are covering core engineering principles and system architecture.",
-    "We will analyze the fundamental mechanisms, theoretical models, and practical software design tradeoffs.",
-    "Observing real-time system metrics allows engineers to quickly isolate performance bottlenecks and edge failure conditions.",
-    "Key concepts covered include modular design, state isolation, distributed synchronization, and fault-tolerant architecture.",
-    "In the next part of this lecture, we will examine quantitative case studies and evaluate empirical benchmarks."
-  ]
-};
+// Common phonetic / speech recognition inaccuracies in academic lectures
+const PHONETIC_CORRECTIONS = [
+  [/\b(pie torch|py torch)\b/gi, 'PyTorch'],
+  [/\b(tensor flow|tensor flo)\b/gi, 'TensorFlow'],
+  [/\b(phyton|pythun)\b/gi, 'Python'],
+  [/\b(see plus plus|c plus plus)\b/gi, 'C++'],
+  [/\b(c sharp)\b/gi, 'C#'],
+  [/\b(sql|sequel)\b/gi, 'SQL'],
+  [/\b(post gres|postgress|postgre sql)\b/gi, 'PostgreSQL'],
+  [/\b(my sequel|my sql)\b/gi, 'MySQL'],
+  [/\b(no sequel|no sql)\b/gi, 'NoSQL'],
+  [/\b(k n n|k-n-n)\b/gi, 'KNN'],
+  [/\b(s v m|s-v-m)\b/gi, 'SVM'],
+  [/\b(c n n|c-n-n)\b/gi, 'CNN'],
+  [/\b(r n n|r-n-n)\b/gi, 'RNN'],
+  [/\b(l s t m|l-s-t-m)\b/gi, 'LSTM'],
+  [/\b(g p u|g-p-u)\b/gi, 'GPU'],
+  [/\b(c p u|c-p-u)\b/gi, 'CPU'],
+  [/\b(t p u|t-p-u)\b/gi, 'TPU'],
+  [/\b(a v l tree|a v l)\b/gi, 'AVL tree'],
+  [/\b(b s t|b-s-t)\b/gi, 'BST'],
+  [/\b(big o|big oh)\b/gi, 'Big-O'],
+  [/\b(o of n|o of 1|o of log n)\b/gi, (match) => {
+    if (/1/.test(match)) return 'O(1)';
+    if (/log/.test(match)) return 'O(log n)';
+    return 'O(n)';
+  }],
+  [/\b(back prop|back propagation)\b/gi, 'backpropagation'],
+  [/\b(gradient decent)\b/gi, 'gradient descent'],
+  [/\b(over fitting)\b/gi, 'overfitting'],
+  [/\b(under fitting)\b/gi, 'underfitting'],
+  [/\b(convolusion|convolusion)\b/gi, 'convolution'],
+  [/\b(rel u|ray lu)\b/gi, 'ReLU'],
+  [/\b(soft max)\b/gi, 'Softmax'],
+  [/\b(cross entropy)\b/gi, 'cross-entropy'],
+  [/\b(acid properties)\b/gi, 'ACID properties'],
+  [/\b(data base|data bases)\b/gi, 'database'],
+];
 
-const getCurriculumCategory = (title = '', subjectName = '') => {
-  const combined = `${title} ${subjectName}`.toLowerCase();
-  if (combined.includes('ml') || combined.includes('machine') || combined.includes('learning') || combined.includes('neural') || combined.includes('ai')) return 'ml';
-  if (combined.includes('dsa') || combined.includes('data structure') || combined.includes('algorithm') || combined.includes('tree') || combined.includes('graph')) return 'dsa';
-  if (combined.includes('dbms') || combined.includes('database') || combined.includes('sql')) return 'dbms';
-  return 'general';
-};
+function applyPhoneticCorrections(text) {
+  if (!text) return '';
+  let cleaned = text;
+  for (const [pattern, replacement] of PHONETIC_CORRECTIONS) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+  return cleaned;
+}
 
 // ─── Component ─────────────────────────────────────────────
 function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
@@ -422,7 +419,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     return () => clearTimeout(timeout);
   }, [transcript, status, detectTopics]);
 
-  // AI Fact Check Debounce
+  // AI Fact Check & Auto-Correction Debounce
   useEffect(() => {
     if (!transcript || transcript.length < 20 || status === 'completed') return;
     const timeout = setTimeout(async () => {
@@ -438,8 +435,32 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           });
           return merged;
         });
+
+        // Auto-apply corrections directly into transcript without requiring manual click
+        setTranscript(prev => {
+          let updated = prev;
+          newCorrections.forEach(({ wrong_quote, correct_fact }) => {
+            if (wrong_quote && correct_fact && updated.includes(wrong_quote)) {
+              updated = updated.split(wrong_quote).join(correct_fact);
+            }
+          });
+          return updated;
+        });
+
+        // Also auto-correct generated notes
+        setNotes(prev => {
+          return prev.map(note => {
+            let noteText = note.text;
+            newCorrections.forEach(({ wrong_quote, correct_fact }) => {
+              if (wrong_quote && correct_fact && noteText.includes(wrong_quote)) {
+                noteText = noteText.split(wrong_quote).join(correct_fact);
+              }
+            });
+            return { ...note, text: noteText };
+          });
+        });
       }
-    }, 5000);
+    }, 4000);
     return () => clearTimeout(timeout);
   }, [transcript, status]);
 
@@ -575,40 +596,6 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
             source.connect(analyser);
             analyserRef.current = analyser;
 
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-
-            const curriculumList = LECTURE_CURRICULUM[getCurriculumCategory(classRef.current?.title, subject?.name)] || LECTURE_CURRICULUM.general;
-
-            const streamVoiceSentence = () => {
-              if (speechStreamingRef.current) return;
-              speechStreamingRef.current = true;
-
-              const sentence = curriculumList[curriculumIdxRef.current % curriculumList.length];
-              curriculumIdxRef.current += 1;
-              const words = sentence.split(' ');
-              let wordIdx = 0;
-
-              const step = () => {
-                if (wordIdx < words.length) {
-                  const partial = words.slice(0, wordIdx + 1).join(' ');
-                  setInterimText(partial);
-                  wordIdx += 1;
-                  speechTimeoutRef.current = setTimeout(step, 180);
-                } else {
-                  setTranscript(prev => (prev ? prev + ' ' + sentence : sentence));
-                  setInterimText('');
-                  const notePoint = buildBriefNote(sentence, durationRef.current || 10, generateId());
-                  if (notePoint) {
-                    setNotes(prev => [...prev, notePoint]);
-                  }
-                  detectTopics(sentence);
-                  speechStreamingRef.current = false;
-                }
-              };
-              step();
-            };
-
             let lastFrameTime = performance.now();
             const checkVolume = () => {
               if (!analyserRef.current) return;
@@ -626,19 +613,11 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
               const dt = now - lastFrameTime;
               lastFrameTime = now;
 
-              // Threshold for vocalization (speaking into mic)
+              // Vocal activity indication from microphone
               if (normalized > 10) {
                 isSpeakingRef.current = true;
                 setIsSpeaking(true);
                 speakAccumTimeRef.current += dt;
-
-                // If user is actively speaking into mic (> 250ms) and no Web Speech API event in 2.2s,
-                // stream lecture curriculum text seamlessly in real-time
-                const timeSinceRealSpeech = Date.now() - (lastRealSpeechRef.current || 0);
-                if (speakAccumTimeRef.current > 250 && timeSinceRealSpeech > 2200 && !speechStreamingRef.current) {
-                  streamVoiceSentence();
-                  speakAccumTimeRef.current = 0;
-                }
               } else {
                 speakAccumTimeRef.current = Math.max(0, speakAccumTimeRef.current - dt * 1.5);
                 if (speakAccumTimeRef.current === 0) {
@@ -698,19 +677,23 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
           speechStreamingRef.current = false;
 
-          setTranscript((prev) => (prev ? prev + ' ' + finalText : finalText));
+          // Automatically apply academic & phonetic auto-correction
+          const correctedText = applyPhoneticCorrections(finalText);
+
+          setTranscript((prev) => (prev ? prev + ' ' + correctedText : correctedText));
           setInterimText('');
 
-          const notePoint = buildBriefNote(finalText, durationRef.current, generateId());
+          const notePoint = buildBriefNote(correctedText, durationRef.current, generateId());
           if (notePoint) {
             setNotes((prev) => [...prev, notePoint]);
           }
-          detectTopics(finalText);
+          detectTopics(correctedText);
         };
 
         engineRef.current.onInterim = (text) => {
           lastRealSpeechRef.current = Date.now();
-          setInterimText(text);
+          const correctedInterim = applyPhoneticCorrections(text);
+          setInterimText(correctedInterim);
         };
 
         engineRef.current.onError = (error) => {
@@ -1267,14 +1250,12 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
                       onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
                       onMouseLeave={e => e.currentTarget.style.transform = 'none'}
                       onClick={() => {
-                        const curList = LECTURE_CURRICULUM[getCurriculumCategory(classRef.current?.title, subject?.name)] || LECTURE_CURRICULUM.general;
-                        const sample = curList.slice(0, 3).join(' ');
-                        setTranscript(prev => (prev ? prev + ' ' + sample : sample));
-                        curList.slice(0, 3).forEach((sent, idx) => {
-                          const notePoint = buildBriefNote(sent, (durationRef.current || 10) + idx * 5, generateId());
-                          if (notePoint) setNotes(prev => [...prev, notePoint]);
-                        });
-                        detectTopics(sample);
+                        const sample = "Today we are analyzing Convolutional Neural Networks and Decision Trees. In an AVL tree, the balance factor is maintained strictly between negative one and positive one. For CNNs, convolution operations apply filter kernels to produce feature maps, followed by pooling layers to downsample spatial dimensions. Next, backpropagation computes the gradient of the loss function using the chain rule.";
+                        const corrected = applyPhoneticCorrections(sample);
+                        setTranscript(prev => (prev ? prev + ' ' + corrected : corrected));
+                        const notePoint = buildBriefNote(corrected, durationRef.current || 10, generateId());
+                        if (notePoint) setNotes(prev => [...prev, notePoint]);
+                        detectTopics(corrected);
                       }}
                     >
                       <Sparkles size={15} />
