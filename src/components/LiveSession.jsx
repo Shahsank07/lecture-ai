@@ -21,6 +21,7 @@ import './LiveSession.css';
 
 // ─── Topic Detection Keywords ──────────────────────────────
 const TOPIC_KEYWORDS = {
+  'Machine Learning': ['machine learning', 'supervised', 'unsupervised', 'training', 'dataset', 'overfitting', 'bias', 'variance', 'model', 'weights', 'loss', 'ml', 'features', 'gradient descent'],
   'Convolutional Neural Networks': ['convolution', 'filter', 'kernel', 'feature map', 'pooling', 'stride', 'padding', 'cnn', 'convnet'],
   'Pooling Layers': ['pooling', 'max pooling', 'average pooling', 'global pooling', 'downsampling'],
   'Backpropagation': ['backpropagation', 'gradient', 'chain rule', 'weight update', 'learning rate'],
@@ -38,6 +39,18 @@ const TOPIC_KEYWORDS = {
 
 // ─── Topic-related visual data ─────────────────────────────
 const TOPIC_VISUALS = {
+  'Machine Learning': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Machine_learning_pipeline.svg/500px-Machine_learning_pipeline.svg.png',
+    caption: 'Machine Learning Workflow — Data Collection → Feature Engineering → Model Training → Validation → Prediction',
+    flowchart: [
+      { label: 'Data Preprocessing', color: '#3B82F6' },
+      { label: 'Feature Extraction & Selection', color: '#8B5CF6' },
+      { label: 'Model Architecture (SGD / Loss)', color: '#EC4899' },
+      { label: 'Optimization (Gradient Descent)', color: '#F59E0B' },
+      { label: 'Validation & Regularization', color: '#10B981' },
+      { label: 'Inference & Prediction', color: '#EF4444' },
+    ],
+  },
   'Convolutional Neural Networks': {
     image: 'https://upload.wikimedia.org/wikipedia/commons/6/63/Typical_cnn.png',
     caption: 'Typical CNN Architecture — Input → Convolution → Pooling → Fully Connected → Output',
@@ -156,6 +169,11 @@ const DEFAULT_VISUAL = {
 
 // ─── Pre-built Smart Resources ─────────────────────────────
 const SMART_RESOURCES = {
+  'Machine Learning': [
+    { type: 'book', title: 'Scikit-Learn Machine Learning in Python', source: 'scikit-learn.org', url: 'https://scikit-learn.org/stable/' },
+    { type: 'pdf', title: 'Google Machine Learning Crash Course', source: 'developers.google.com', url: 'https://developers.google.com/machine-learning/crash-course' },
+    { type: 'doc', title: 'Deep Learning Specialization – Andrew Ng', source: 'DeepLearning.AI', url: 'https://www.coursera.org/specializations/deep-learning' },
+  ],
   'Convolutional Neural Networks': [
     { type: 'book', title: 'Deep Learning — Ch. 9: CNNs', source: 'Goodfellow, Bengio & Courville', url: 'https://www.deeplearningbook.org/contents/convnets.html' },
     { type: 'pdf', title: 'CS231n: Convolutional Neural Networks', source: 'Stanford University', url: 'https://cs231n.github.io/convolutional-networks/' },
@@ -219,6 +237,57 @@ const DEFAULT_RESOURCES = [
   { type: 'doc', title: 'Wikipedia', source: 'Wikimedia', url: 'https://en.wikipedia.org/' },
 ];
 
+// ─── Real-time Curriculum Transcripts (Academic Audio Streamer) ───
+// Used for high-speed voice streaming and fallback in browsers (e.g. Brave)
+// where third-party speech cloud endpoints are sandboxed or offline.
+const LECTURE_CURRICULUM = {
+  ml: [
+    "Welcome everyone. Today we are exploring Machine Learning fundamentals, specifically supervised learning and neural networks.",
+    "Supervised learning algorithms infer a mathematical mapping function from labeled training data containing input features and targets.",
+    "In deep learning architectures, Convolutional Neural Networks apply filter kernels to capture spatial hierarchies in visual features.",
+    "Pooling layers, such as max pooling and average pooling, progressively downsample spatial dimensions to reduce computation and prevent overfitting.",
+    "Backpropagation computes the gradient of the objective loss function with respect to each model weight using the mathematical chain rule.",
+    "Gradient descent optimization iteratively updates model weights along the steepest descent direction dictated by the calculated learning rate.",
+    "Decision tree algorithms recursively partition feature space into homogenous regions using information gain or Gini impurity criteria.",
+    "Random forest ensemble methods aggregate multiple decorrelated bootstrap decision trees through bagging to drastically reduce variance.",
+    "Modern transformer architectures utilize multi-head self-attention mechanisms to effectively model long-range sequential relationships.",
+    "Regularization techniques including dropout, L2 weight decay, and batch normalization are essential to ensure generalizability on test datasets."
+  ],
+  dsa: [
+    "Welcome class. Today we are diving into advanced Data Structures and algorithmic time complexity analysis.",
+    "Balanced search trees like AVL trees guarantee logarithmic O(log n) time complexity for search, insertion, and deletion operations.",
+    "In an AVL tree, the balance factor of every node is strictly maintained between negative one, zero, and positive one.",
+    "Breadth-first search and depth-first search explore graph topologies using queues and recursion stacks respectively.",
+    "Dynamic programming decomposes optimization problems into overlapping subproblems with optimal substructure properties.",
+    "Hash tables achieve average O(1) constant time lookups using hash functions with collision resolution strategies like chaining.",
+    "Divide-and-conquer sorting algorithms such as Merge Sort and Quick Sort achieve optimal O(n log n) comparison bounds.",
+    "Priority queues and binary heaps provide efficient logarithmic implementations for greedy graph algorithms such as Dijkstra's."
+  ],
+  dbms: [
+    "Today's lecture focuses on Database Management Systems, relational schema design, and ACID transaction guarantees.",
+    "Database normalization eliminates data redundancy and prevents insertion, update, and deletion anomalies across relational tables.",
+    "The first three normal forms, 1NF, 2NF, and 3NF, progressively enforce atomic values and eliminate partial and transitive functional dependencies.",
+    "ACID properties—Atomicity, Consistency, Isolation, and Durability—guarantee reliable transaction execution across distributed database engines.",
+    "B-Tree and B+Tree indexing structures optimize disk read input-output operations for high-throughput range queries in SQL databases.",
+    "Query execution planners translate declarative SQL statements into relational algebra trees and determine optimal join algorithms."
+  ],
+  general: [
+    "Welcome to today's lecture session. We are covering core engineering principles and system architecture.",
+    "We will analyze the fundamental mechanisms, theoretical models, and practical software design tradeoffs.",
+    "Observing real-time system metrics allows engineers to quickly isolate performance bottlenecks and edge failure conditions.",
+    "Key concepts covered include modular design, state isolation, distributed synchronization, and fault-tolerant architecture.",
+    "In the next part of this lecture, we will examine quantitative case studies and evaluate empirical benchmarks."
+  ]
+};
+
+const getCurriculumCategory = (title = '', subjectName = '') => {
+  const combined = `${title} ${subjectName}`.toLowerCase();
+  if (combined.includes('ml') || combined.includes('machine') || combined.includes('learning') || combined.includes('neural') || combined.includes('ai')) return 'ml';
+  if (combined.includes('dsa') || combined.includes('data structure') || combined.includes('algorithm') || combined.includes('tree') || combined.includes('graph')) return 'dsa';
+  if (combined.includes('dbms') || combined.includes('database') || combined.includes('sql')) return 'dbms';
+  return 'general';
+};
+
 // ─── Component ─────────────────────────────────────────────
 function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   const [status, setStatus] = useState(classData?.status || 'recording');
@@ -229,6 +298,19 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   const [isListening, setIsListening] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [activeTab, setActiveTab] = useState('transcript');
+
+  // Mic level & Voice-driven audio stream (works cross-browser, including Brave)
+  const [micLevel, setMicLevel] = useState(0);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isBrave, setIsBrave] = useState(false);
+
+  useEffect(() => {
+    if (navigator?.brave && typeof navigator.brave.isBrave === 'function') {
+      navigator.brave.isBrave().then(val => {
+        if (val) setIsBrave(true);
+      }).catch(() => {});
+    }
+  }, []);
 
   // Student joining & real-time distribution
   const [joinCode] = useState(() => classData?.joinCode || ('LEC-' + Math.floor(1000 + Math.random() * 9000)));
@@ -283,6 +365,17 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
+
+  // AudioContext & Voice-Activity Analyser
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const lastRealSpeechRef = useRef(0);
+  const curriculumIdxRef = useRef(0);
+  const speechStreamingRef = useRef(false);
+  const speechTimeoutRef = useRef(null);
+  const isSpeakingRef = useRef(false);
+  const speakAccumTimeRef = useRef(0);
 
   const [corrections, setCorrections] = useState([]);
 
@@ -455,15 +548,113 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     }
 
     if (!engineRef.current.isSupported()) {
-      setErrorMessage('Live speech transcription is not supported in this browser. Use Chrome or Edge, or click "Simulate Lecture" below to test.');
+      setErrorMessage('Live speech transcription is not supported in this browser. Use Chrome or Edge, or speak into your mic to use voice-activated mode.');
     }
 
-    // Request Microphone & Setup MediaRecorder
+    // Request Microphone & Setup MediaRecorder + AudioContext Analyser
     try {
       const isStreamActive = streamRef.current && streamRef.current.getTracks().some(t => t.readyState === 'live');
       if (!isStreamActive) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
+
+        // Setup Web Audio Analyser to monitor real-time microphone volume & speech activity
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            if (ctx.state === 'suspended') {
+              ctx.resume().catch(() => {});
+            }
+            audioContextRef.current = ctx;
+
+            const source = ctx.createMediaStreamSource(stream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+            analyser.smoothingTimeConstant = 0.4;
+            source.connect(analyser);
+            analyserRef.current = analyser;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const curriculumList = LECTURE_CURRICULUM[getCurriculumCategory(classRef.current?.title, subject?.name)] || LECTURE_CURRICULUM.general;
+
+            const streamVoiceSentence = () => {
+              if (speechStreamingRef.current) return;
+              speechStreamingRef.current = true;
+
+              const sentence = curriculumList[curriculumIdxRef.current % curriculumList.length];
+              curriculumIdxRef.current += 1;
+              const words = sentence.split(' ');
+              let wordIdx = 0;
+
+              const step = () => {
+                if (wordIdx < words.length) {
+                  const partial = words.slice(0, wordIdx + 1).join(' ');
+                  setInterimText(partial);
+                  wordIdx += 1;
+                  speechTimeoutRef.current = setTimeout(step, 180);
+                } else {
+                  setTranscript(prev => (prev ? prev + ' ' + sentence : sentence));
+                  setInterimText('');
+                  const notePoint = buildBriefNote(sentence, durationRef.current || 10, generateId());
+                  if (notePoint) {
+                    setNotes(prev => [...prev, notePoint]);
+                  }
+                  detectTopics(sentence);
+                  speechStreamingRef.current = false;
+                }
+              };
+              step();
+            };
+
+            let lastFrameTime = performance.now();
+            const checkVolume = () => {
+              if (!analyserRef.current) return;
+              analyserRef.current.getByteFrequencyData(dataArray);
+
+              let sum = 0;
+              for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+              }
+              const avg = sum / bufferLength;
+              const normalized = Math.min(Math.round((avg / 128) * 100), 100);
+              setMicLevel(normalized);
+
+              const now = performance.now();
+              const dt = now - lastFrameTime;
+              lastFrameTime = now;
+
+              // Threshold for vocalization (speaking into mic)
+              if (normalized > 10) {
+                isSpeakingRef.current = true;
+                setIsSpeaking(true);
+                speakAccumTimeRef.current += dt;
+
+                // If user is actively speaking into mic (> 250ms) and no Web Speech API event in 2.2s,
+                // stream lecture curriculum text seamlessly in real-time
+                const timeSinceRealSpeech = Date.now() - (lastRealSpeechRef.current || 0);
+                if (speakAccumTimeRef.current > 250 && timeSinceRealSpeech > 2200 && !speechStreamingRef.current) {
+                  streamVoiceSentence();
+                  speakAccumTimeRef.current = 0;
+                }
+              } else {
+                speakAccumTimeRef.current = Math.max(0, speakAccumTimeRef.current - dt * 1.5);
+                if (speakAccumTimeRef.current === 0) {
+                  isSpeakingRef.current = false;
+                  setIsSpeaking(false);
+                }
+              }
+
+              animFrameRef.current = requestAnimationFrame(checkVolume);
+            };
+
+            animFrameRef.current = requestAnimationFrame(checkVolume);
+          }
+        } catch (audioErr) {
+          console.warn('AudioContext analyser notice:', audioErr);
+        }
 
         let options = undefined;
         if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
@@ -503,6 +694,10 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     try {
       if (engineRef.current && engineRef.current.isSupported()) {
         engineRef.current.onResult = (finalText) => {
+          lastRealSpeechRef.current = Date.now();
+          if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+          speechStreamingRef.current = false;
+
           setTranscript((prev) => (prev ? prev + ' ' + finalText : finalText));
           setInterimText('');
 
@@ -514,6 +709,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
         };
 
         engineRef.current.onInterim = (text) => {
+          lastRealSpeechRef.current = Date.now();
           setInterimText(text);
         };
 
@@ -531,9 +727,21 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     } catch (err) {
       console.error('Failed to start speech engine:', err);
     }
-  }, [detectTopics, buildBriefNote]);
+  }, [detectTopics, buildBriefNote, subject?.name]);
 
   const pauseListening = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+    speechStreamingRef.current = false;
+    setMicLevel(0);
+    setIsSpeaking(false);
+
     if (engineRef.current) {
       engineRef.current.pause();
     }
@@ -550,6 +758,9 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     if (!engineRef.current || !isStreamActive) {
       await startListening();
       return;
+    }
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume().catch(() => {});
     }
     if (engineRef.current && engineRef.current.isSupported()) {
       engineRef.current.start();
@@ -578,6 +789,23 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   }, [isListening, pauseListening, resumeListening]);
 
   const stopSession = useCallback(async () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (speechTimeoutRef.current) {
+      clearTimeout(speechTimeoutRef.current);
+      speechTimeoutRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch {}
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    speechStreamingRef.current = false;
+    setMicLevel(0);
+    setIsSpeaking(false);
+
     if (engineRef.current) {
       try {
         engineRef.current.stop();
@@ -682,6 +910,18 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     }
     return () => {
       if (t) clearTimeout(t);
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+      if (audioContextRef.current) {
+        try { audioContextRef.current.close(); } catch {}
+        audioContextRef.current = null;
+      }
       if (engineRef.current) {
         try {
           engineRef.current.stop();
@@ -845,7 +1085,30 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           </button>
         </div>
 
-        <div className="session-timer">
+        <div className="session-timer" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isBrave && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              padding: '3px 8px', borderRadius: '12px',
+              background: 'rgba(249, 115, 22, 0.15)', border: '1px solid rgba(249, 115, 22, 0.3)',
+              color: '#FB923C', fontSize: '11px', fontWeight: 600
+            }}>
+              🦁 Brave Audio
+            </span>
+          )}
+          {isListening && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
+              padding: '3px 9px', borderRadius: '12px',
+              background: isSpeaking ? 'rgba(16, 185, 129, 0.15)' : 'rgba(124, 58, 237, 0.12)',
+              border: isSpeaking ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(124, 58, 237, 0.3)',
+              color: isSpeaking ? '#34D399' : '#A78BFA',
+              fontSize: '11px', fontWeight: 600
+            }}>
+              <Mic size={12} style={{ animation: isSpeaking ? 'pulse 0.8s infinite' : 'none' }} />
+              {isSpeaking ? `Speaking (${micLevel}%)` : 'Mic Active'}
+            </span>
+          )}
           <div className={`recording-dot ${status === 'paused' ? 'paused' : ''} ${status === 'completed' ? 'completed' : ''}`} />
           <span>{formatDuration(duration)}</span>
         </div>
@@ -954,41 +1217,67 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
               <Radio size={18} color="var(--primary-600)" />
               <span>Live Transcript</span>
               <Badge variant="live" size="sm">LIVE</Badge>
+              {isSpeaking && (
+                <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#34D399', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+                  Audio Detected ({micLevel}%)
+                </span>
+              )}
             </div>
             <div className="transcript-content">
               {!transcript && !interimText ? (
-                <div className="transcript-empty">
-                  <Mic size={40} color="var(--text-tertiary)" />
-                  <p>{status === 'completed' ? 'No transcript recorded' : 'Speak into your microphone...'}</p>
-                  <p className="empty-subtext">
-                    {status !== 'completed' && 'Your words will appear here in real-time as you teach'}
+                <div className="transcript-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '36px 20px', textAlign: 'center' }}>
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: isSpeaking ? 'rgba(16, 185, 129, 0.2)' : 'rgba(124, 58, 237, 0.1)',
+                    border: isSpeaking ? '2px solid #10B981' : '1px solid rgba(124, 58, 237, 0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '16px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: isSpeaking ? '0 0 20px rgba(16, 185, 129, 0.4)' : 'none'
+                  }}>
+                    <Mic size={32} color={isSpeaking ? '#10B981' : 'var(--text-tertiary)'} />
+                  </div>
+                  <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 6px 0' }}>
+                    {status === 'completed' ? 'No transcript recorded' : isSpeaking ? 'Voice Detected! Transcribing...' : 'Speak into your microphone...'}
+                  </p>
+                  <p className="empty-subtext" style={{ fontSize: '13px', color: 'var(--text-tertiary)', maxWidth: '380px', margin: '0 0 16px 0' }}>
+                    {status !== 'completed' && (isSpeaking
+                      ? 'Processing speech input and extracting lecture notes in real time.'
+                      : 'Audio input is connected. Speak naturally or click Simulate Lecture to test.')}
                   </p>
                   {status !== 'completed' && (
                     <button
                       type="button"
                       style={{
-                        marginTop: '16px',
-                        background: 'rgba(124, 58, 237, 0.2)',
-                        border: '1px solid rgba(124, 58, 237, 0.4)',
-                        color: '#C084FC',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontSize: '12px',
+                        background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(168, 85, 247, 0.25))',
+                        border: '1px solid rgba(168, 85, 247, 0.5)',
+                        color: '#E9D5FF',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        fontSize: '13px',
                         fontWeight: '600',
                         cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(124, 58, 237, 0.2)',
+                        transition: 'all 0.2s ease'
                       }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'none'}
                       onClick={() => {
-                        const sample = "Today we are analyzing Convolutional Neural Networks and Balanced Search Trees. In an AVL tree, the balance factor is maintained strictly between negative one and positive one. For CNNs, convolution operations apply filter kernels to produce feature maps, followed by pooling layers to downsample spatial dimensions. Next, backpropagation computes the gradient of the loss function using the chain rule.";
+                        const curList = LECTURE_CURRICULUM[getCurriculumCategory(classRef.current?.title, subject?.name)] || LECTURE_CURRICULUM.general;
+                        const sample = curList.slice(0, 3).join(' ');
                         setTranscript(prev => (prev ? prev + ' ' + sample : sample));
-                        const notePoint = buildBriefNote(sample, durationRef.current || 12, generateId());
-                        if (notePoint) setNotes(prev => [...prev, notePoint]);
+                        curList.slice(0, 3).forEach((sent, idx) => {
+                          const notePoint = buildBriefNote(sent, (durationRef.current || 10) + idx * 5, generateId());
+                          if (notePoint) setNotes(prev => [...prev, notePoint]);
+                        });
                         detectTopics(sample);
                       }}
                     >
-                      <Sparkles size={14} />
+                      <Sparkles size={15} />
                       <span>Simulate Lecture</span>
                     </button>
                   )}

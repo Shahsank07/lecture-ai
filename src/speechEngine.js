@@ -61,6 +61,10 @@ class SpeechEngine {
       if (event.error === 'no-speech' || event.error === 'aborted') {
         return;
       }
+      if (event.error === 'network') {
+        // Stop tight restart loop when browser (e.g. Brave) blocks Google cloud speech
+        this.shouldRestart = false;
+      }
       console.warn('SpeechRecognition error:', event.error);
       if (this.onError) {
         this.onError(event.error);
