@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react';
 import {
   BookOpen, Video, FileText, Plus, Search, Calendar,
   Clock, Play, ArrowRight, FolderOpen, Sparkles, CheckCircle2,
