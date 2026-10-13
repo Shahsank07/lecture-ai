@@ -288,12 +288,18 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
 
   // Topic detection state
   const [currentTopic, setCurrentTopic] = useState('Introduction');
+  const currentTopicRef = useRef(currentTopic);
+  useEffect(() => {
+    currentTopicRef.current = currentTopic;
+  }, [currentTopic]);
+
   const [topicHistory, setTopicHistory] = useState([]);
   const [showTopicChange, setShowTopicChange] = useState(false);
   const [lastTopicChange, setLastTopicChange] = useState(null);
 
   // Topic detection from transcript
   const detectTopics = useCallback((text) => {
+    if (!text) return;
     const recentText = text.slice(-2000).toLowerCase();
     let detectedTopic = 'General Discussion';
 
@@ -305,15 +311,15 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       }
     }
 
-    if (detectedTopic !== currentTopic) {
-      const prevTopic = currentTopic;
+    if (detectedTopic !== currentTopicRef.current) {
+      const prevTopic = currentTopicRef.current;
       setCurrentTopic(detectedTopic);
-      setTopicHistory(prev => [...prev.slice(-6), { topic: detectedTopic, time: duration }]);
-      setLastTopicChange({ from: prevTopic, to: detectedTopic, time: duration });
+      setTopicHistory(prev => [...prev.slice(-6), { topic: detectedTopic, time: durationRef.current }]);
+      setLastTopicChange({ from: prevTopic, to: detectedTopic, time: durationRef.current });
       setShowTopicChange(true);
       setTimeout(() => setShowTopicChange(false), 4000);
     }
-  }, [currentTopic, duration]);
+  }, []);
 
   useEffect(() => {
     if (!transcript || transcript.length < 50 || status === 'completed') return;
@@ -665,10 +671,14 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   }, [classData?.id, subject?.id, transcript, notes, onRefreshClass, topicHistory, currentTopic, joinCode, attendees]);
 
   // Start listening on mount if recording session
+  const startedRef = useRef(false);
   useEffect(() => {
     let t;
-    if (classData?.status === 'recording') {
-      t = setTimeout(() => startListening(), 300);
+    if ((classData?.status === 'recording' || status === 'recording') && !startedRef.current) {
+      startedRef.current = true;
+      t = setTimeout(() => {
+        startListening();
+      }, 300);
     }
     return () => {
       if (t) clearTimeout(t);
@@ -686,7 +696,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
         streamRef.current = null;
       }
     };
-  }, [classData?.status, startListening]);
+  }, []);
 
   const handleFinishAndView = async () => {
     setIsFinishing(true);

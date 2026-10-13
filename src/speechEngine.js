@@ -12,14 +12,22 @@ class SpeechEngine {
   }
 
   isSupported() {
-    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    return !!(typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition));
   }
 
   init() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
     if (!SpeechRecognition) {
       throw new Error('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
     }
+
+    try {
+      if (this.recognition) {
+        this.recognition.onresult = null;
+        this.recognition.onerror = null;
+        this.recognition.onend = null;
+      }
+    } catch (e) {}
 
     this.recognition = new SpeechRecognition();
     this.recognition.continuous = true;
@@ -60,17 +68,18 @@ class SpeechEngine {
     };
 
     this.recognition.onend = () => {
-      // Auto-restart if recording is actively listening
+      // Auto-restart if session is actively listening
       if (this.shouldRestart && this.isListening) {
         setTimeout(() => {
           if (this.shouldRestart && this.isListening) {
             try {
+              this.init();
               this.recognition.start();
             } catch (e) {
-              // Ignore if already active or starting
+              console.warn('SpeechRecognition auto-restart notice:', e);
             }
           }
-        }, 200);
+        }, 250);
       } else {
         this.isListening = false;
         if (this.onEnd) {
@@ -81,11 +90,11 @@ class SpeechEngine {
   }
 
   start() {
+    this.shouldRestart = true;
+    this.isListening = true;
     if (!this.recognition) {
       this.init();
     }
-    this.shouldRestart = true;
-    this.isListening = true;
     try {
       this.recognition.start();
     } catch (e) {
@@ -102,7 +111,9 @@ class SpeechEngine {
     this.shouldRestart = false;
     this.isListening = false;
     if (this.recognition) {
-      this.recognition.stop();
+      try {
+        this.recognition.stop();
+      } catch (e) {}
     }
   }
 
@@ -110,13 +121,22 @@ class SpeechEngine {
     this.shouldRestart = false;
     this.isListening = false;
     if (this.recognition) {
-      this.recognition.stop();
+      try {
+        this.recognition.stop();
+      } catch (e) {}
     }
   }
 
   destroy() {
     this.stop();
-    this.recognition = null;
+    if (this.recognition) {
+      try {
+        this.recognition.onresult = null;
+        this.recognition.onerror = null;
+        this.recognition.onend = null;
+      } catch (e) {}
+      this.recognition = null;
+    }
   }
 }
 

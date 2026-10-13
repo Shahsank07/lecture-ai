@@ -7,7 +7,7 @@ import {
   Search, ArrowRight, BookMarked, UserCheck, BarChart3,
   Video, UploadCloud, FileText, CheckCircle2, X
 } from 'lucide-react';
-import { getAllSubjects, getAllClasses, getClassesBySubject } from '../../db';
+import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources } from '../../db';
 import UploadNotesModal from './UploadNotesModal';
 import UploadQuizModal from './UploadQuizModal';
 import MarkAttendanceModal from './MarkAttendanceModal';
@@ -60,7 +60,21 @@ export default function FacultyPanel({
   // ─── Real data loading for non-demo users ───────────
   const [realSubjects, setRealSubjects] = useState([]);
   const [realClasses, setRealClasses] = useState([]);
+  const [savedResourcesList, setSavedResourcesList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getAllSavedResources();
+        if (res && res.length > 0) {
+          setSavedResourcesList(res);
+        }
+      } catch (e) {
+        console.warn('Failed to load resources:', e);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!isDemo && user?.id) {
@@ -345,8 +359,8 @@ export default function FacultyPanel({
           </button>
 
           <button
-            className="faculty-nav-item"
-            onClick={() => setShowUploadNotes(true)}
+            className={`faculty-nav-item ${activeTab === 'resources' ? 'active' : ''}`}
+            onClick={() => setActiveTab('resources')}
           >
             <FolderOpen size={18} />
             <span>Resources</span>
@@ -915,6 +929,221 @@ export default function FacultyPanel({
             </div>
           </div>
         )}
+
+        {/* ================= TAB: RESOURCES & STUDY MATERIALS ================= */}
+        {activeTab === 'resources' && (
+          <div className="faculty-classes-view">
+            <div className="subview-header">
+              <div>
+                <h2>Learning Resources & Study Materials</h2>
+                <p>Upload lecture PDFs & documents — AI reads each file and extracts important points for your students</p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  className="modal-primary-btn purple-btn"
+                  onClick={() => setShowUploadNotes(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
+                >
+                  <UploadCloud size={16} />
+                  <span>Upload PDF & Extract Points</span>
+                </button>
+                <button className="subview-back-to-dash" onClick={() => setActiveTab('dashboard')}>
+                  ← Back to Dashboard
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Drag & Drop Action Banner */}
+            <div
+              onClick={() => setShowUploadNotes(true)}
+              style={{
+                marginBottom: '24px',
+                padding: '24px 20px',
+                borderRadius: '16px',
+                border: '2px dashed rgba(168, 85, 247, 0.4)',
+                background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(168, 85, 247, 0.04))',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                  boxShadow: '0 4px 16px rgba(124, 58, 237, 0.4)'
+                }}>
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#F8FAFC', fontWeight: 700 }}>
+                    Drag & Drop any PDF to Extract Important Points
+                  </h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#94A3B8' }}>
+                    Upload course handouts, slide decks, or textbook chapters. AI will read the PDF and extract key formulas, definitions, and exam points.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                style={{
+                  background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                  border: 'none', color: '#fff', padding: '10px 20px', borderRadius: '10px',
+                  fontWeight: 600, fontSize: '13px', cursor: 'pointer', flexShrink: 0
+                }}
+              >
+                Upload & Extract Now →
+              </button>
+            </div>
+
+            {/* Resources List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {savedResourcesList.length === 0 ? (
+                <div style={{ padding: '60px 20px', textAlign: 'center', background: '#13192B', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <FolderOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.35, color: '#A855F7' }} />
+                  <h3 style={{ color: '#F1F5F9', fontSize: '18px', marginBottom: '8px' }}>No Resources Uploaded Yet</h3>
+                  <p style={{ color: '#64748B', fontSize: '14px', maxWidth: '420px', margin: '0 auto 20px' }}>
+                    Click below to upload your first lecture PDF. The system will read the file and extract structured revision points for your students.
+                  </p>
+                  <button
+                    onClick={() => setShowUploadNotes(true)}
+                    style={{
+                      background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                      border: 'none', color: '#fff', padding: '12px 24px', borderRadius: '12px',
+                      cursor: 'pointer', fontSize: '14px', fontWeight: 600, display: 'inline-flex',
+                      alignItems: 'center', gap: '8px'
+                    }}
+                  >
+                    <UploadCloud size={18} />
+                    <span>Upload Lecture PDF</span>
+                  </button>
+                </div>
+              ) : (
+                savedResourcesList.map((res, rIdx) => (
+                  <div
+                    key={res.id || rIdx}
+                    style={{
+                      background: '#13192B',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '16px',
+                      padding: '20px 24px',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    {/* Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{
+                            fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '6px',
+                            background: 'rgba(168,85,247,0.15)', color: '#C084FC'
+                          }}>
+                            {res.classGroup || res.subject || 'Course Resource'}
+                          </span>
+                          {res.topic && (
+                            <span style={{ fontSize: '11px', color: '#64748B' }}>• {res.topic}</span>
+                          )}
+                        </div>
+                        <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
+                          {res.title}
+                        </h3>
+                      </div>
+
+                      <span style={{ fontSize: '11px', color: '#64748B' }}>
+                        {res.createdAt ? new Date(res.createdAt).toLocaleDateString() : 'Recent'}
+                      </span>
+                    </div>
+
+                    {/* Description / Overview */}
+                    {(res.description || res.overview) && (
+                      <p style={{ fontSize: '13px', color: '#94A3B8', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+                        {res.description || res.overview}
+                      </p>
+                    )}
+
+                    {/* Files Attached */}
+                    {res.files && res.files.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+                        {res.files.map((f, fi) => (
+                          <div
+                            key={fi}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '6px',
+                              padding: '5px 10px', borderRadius: '6px',
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid rgba(255,255,255,0.08)',
+                              fontSize: '12px', color: '#CBD5E1'
+                            }}
+                          >
+                            <FileText size={14} color="#A855F7" />
+                            <span>{f.name}</span>
+                            {f.size && <span style={{ color: '#64748B', fontSize: '11px' }}>({f.size})</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Extracted Important Points from PDF */}
+                    {res.extractedPoints && res.extractedPoints.length > 0 && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        background: '#0D1117',
+                        border: '1px solid rgba(168, 85, 247, 0.25)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                          <Sparkles size={16} color="#A855F7" />
+                          <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#F1F5F9', margin: 0 }}>
+                            AI Extracted Important Points from PDF ({res.extractedPoints.length})
+                          </h4>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {res.extractedPoints.map((pt, pIdx) => (
+                            <div
+                              key={pIdx}
+                              style={{
+                                display: 'flex', gap: '10px', alignItems: 'flex-start',
+                                padding: '8px 10px', borderRadius: '8px',
+                                background: 'rgba(255,255,255,0.02)'
+                              }}
+                            >
+                              <div style={{
+                                width: '20px', height: '20px', borderRadius: '6px',
+                                background: 'rgba(168,85,247,0.2)', color: '#C084FC',
+                                fontSize: '11px', fontWeight: 700, display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                              }}>
+                                {pt.pointNumber || pIdx + 1}
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                                  <strong style={{ fontSize: '12px', color: '#F8FAFC' }}>{pt.title}</strong>
+                                  {pt.tag && (
+                                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(124,58,237,0.2)', color: '#A78BFA' }}>
+                                      {pt.tag}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#94A3B8', lineHeight: '1.4' }}>
+                                  {pt.explanation}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ================= LIVE LECTURE PICKER MODAL ================= */}
@@ -1056,7 +1285,7 @@ export default function FacultyPanel({
         isOpen={showUploadNotes}
         onClose={() => setShowUploadNotes(false)}
         onUploaded={(note) => {
-          console.log('Uploaded note:', note);
+          if (note) setSavedResourcesList(prev => [note, ...prev]);
         }}
       />
 
