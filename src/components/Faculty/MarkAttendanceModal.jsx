@@ -3,6 +3,7 @@ import {
   X, Users, Check, AlertCircle, Clock, CheckCircle2,
   Calendar, Search, Download, ArrowRight, Sparkles
 } from 'lucide-react';
+import { saveAttendanceRecord } from '../../db';
 import './FacultyPanel.css';
 
 const INITIAL_ROSTER = [
@@ -78,7 +79,22 @@ export default function MarkAttendanceModal({ isOpen, onClose, defaultClass = 'D
   const lateCount = roster.filter(s => s.status === 'late').length;
   const attendancePercent = ((presentCount / roster.length) * 100).toFixed(1);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    try {
+      await saveAttendanceRecord({
+        classGroup: selectedClass,
+        date,
+        slot,
+        totalEnrolled: roster.length,
+        presentCount,
+        absentCount,
+        lateCount,
+        attendancePercent,
+        roster
+      });
+    } catch (e) {
+      console.warn('Failed to save attendance record:', e);
+    }
     setSaved(true);
     setTimeout(() => {
       setSaved(false);

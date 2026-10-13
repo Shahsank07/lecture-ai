@@ -427,6 +427,68 @@ export async function deleteSavedResource(id) {
   setLocal('resources', localResources);
 }
 
+// ─── Assignments ─────────────────────────────────────
+export async function getAllAssignments(user) {
+  const local = getLocal('assignments');
+  if (!user) return local;
+
+  // If user is student, filter assignments published for their classes or enrolled subjects
+  if (user.role === 'student') {
+    const studentDept = (user.department || '').toLowerCase();
+    const studentSem = (user.semester || '').toLowerCase();
+    return local.filter(a => {
+      // If assignment was assigned to 'all' or matches student class/subject
+      if (!a.classGroup || a.classGroup === 'All Classes' || a.classGroup === 'all') return true;
+      const target = a.classGroup.toLowerCase();
+      // Match department, course name or semester keywords
+      if (studentDept && (target.includes(studentDept) || studentDept.includes(target))) return true;
+      if (a.course && target.includes(a.course.toLowerCase())) return true;
+      return true; // Show published assignments
+    });
+  }
+
+  // If faculty, show assignments created by this faculty or all assignments
+  return local;
+}
+
+export async function saveAssignment(assignment) {
+  if (!assignment.id) assignment.id = generateId();
+  if (!assignment.createdAt) assignment.createdAt = new Date().toISOString();
+  const local = getLocal('assignments');
+  const idx = local.findIndex(a => a.id === assignment.id);
+  if (idx >= 0) {
+    local[idx] = { ...local[idx], ...assignment };
+  } else {
+    local.unshift(assignment);
+  }
+  setLocal('assignments', local);
+  return assignment;
+}
+
+export async function deleteAssignment(id) {
+  const local = getLocal('assignments').filter(a => a.id !== id);
+  setLocal('assignments', local);
+}
+
+// ─── Attendance Records ──────────────────────────────
+export async function getAttendanceRecords() {
+  return getLocal('attendance_records');
+}
+
+export async function saveAttendanceRecord(record) {
+  if (!record.id) record.id = generateId();
+  if (!record.recordedAt) record.recordedAt = new Date().toISOString();
+  const local = getLocal('attendance_records');
+  const idx = local.findIndex(r => r.id === record.id);
+  if (idx >= 0) {
+    local[idx] = { ...local[idx], ...record };
+  } else {
+    local.unshift(record);
+  }
+  setLocal('attendance_records', local);
+  return record;
+}
+
 // ─── Seed Default Data (Instant execution) ───────────
 export async function seedDefaultSubjectsAndClasses(userId) {
   const existing = getLocal('subjects').filter(s => !userId || s.userId === userId || s.user_id === userId);

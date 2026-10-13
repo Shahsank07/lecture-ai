@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, BookOpen, Video, FileText, FolderOpen,
   ClipboardList, HelpCircle, Calendar, Megaphone, MessageSquare,
@@ -6,6 +6,7 @@ import {
   Bell, Play, Download, MoreVertical, Clock, MapPin,
   ChevronRight, ArrowRight, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import { getAllAssignments } from '../../db';
 import NotificationsModal from '../NotificationsModal';
 import './StudentPanel.css';
 
@@ -98,32 +99,55 @@ export default function StudentPanel({
     }
   ] : [];
 
-  const upcomingDeadlines = isDemo ? [
-    {
-      id: 'dl-1',
-      title: 'DSA Assignment 2',
-      course: 'Data Structures',
-      due: '22 May 2025',
-      daysLeft: '2 Days Left',
-      urgency: 'danger'
-    },
-    {
-      id: 'dl-2',
-      title: 'DBMS Quiz 1',
-      course: 'Database Management Systems',
-      due: '25 May 2025',
-      daysLeft: '5 Days Left',
-      urgency: 'warning'
-    },
-    {
-      id: 'dl-3',
-      title: 'OS Case Study',
-      course: 'Operating Systems',
-      due: '28 May 2025',
-      daysLeft: '8 Days Left',
-      urgency: 'safe'
-    }
-  ] : [];
+  const [studentAssignments, setStudentAssignments] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const asgs = await getAllAssignments(user);
+        setStudentAssignments(asgs || []);
+      } catch (e) {
+        console.warn('StudentPanel assignments load:', e);
+      }
+    })();
+  }, [user]);
+
+  // Combine demo defaults with any real published assignments from faculty
+  const upcomingDeadlines = studentAssignments.length > 0
+    ? studentAssignments.map(a => ({
+        id: a.id,
+        title: a.title,
+        course: a.course || a.classGroup || 'Coursework',
+        due: a.dueDate,
+        daysLeft: a.daysLeft || 'Due Soon',
+        urgency: a.urgency || 'warning'
+      }))
+    : (isDemo ? [
+        {
+          id: 'dl-1',
+          title: 'DSA Assignment 2',
+          course: 'Data Structures',
+          due: '22 May 2025',
+          daysLeft: '2 Days Left',
+          urgency: 'danger'
+        },
+        {
+          id: 'dl-2',
+          title: 'DBMS Quiz 1',
+          course: 'Database Management Systems',
+          due: '25 May 2025',
+          daysLeft: '5 Days Left',
+          urgency: 'warning'
+        },
+        {
+          id: 'dl-3',
+          title: 'OS Case Study',
+          course: 'Operating Systems',
+          due: '28 May 2025',
+          daysLeft: '8 Days Left',
+          urgency: 'safe'
+        }
+      ] : []);
 
   const announcements = isDemo ? [
     {
@@ -159,8 +183,12 @@ export default function StudentPanel({
 
   const classesCount = isDemo ? 5 : (subjects?.length || user?.enrolledClassesCount || 0);
   const lecturesCount = isDemo ? 12 : 0;
-  const assignmentsCount = isDemo ? 8 : 0;
-  const pendingCount = isDemo ? 2 : 0;
+  const assignmentsCount = studentAssignments.length > 0
+    ? studentAssignments.length
+    : (isDemo ? 8 : 0);
+  const pendingCount = studentAssignments.length > 0
+    ? studentAssignments.filter(a => a.status === 'pending').length
+    : (isDemo ? 2 : 0);
   const progressPercent = isDemo ? '75%' : '0%';
   const progressSub = isDemo ? 'Keep it up!' : 'Start learning';
 

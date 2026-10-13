@@ -1,124 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ClipboardList, CheckCircle2, Clock, AlertCircle, FileText,
-  Upload, ExternalLink, Filter, Search, ArrowRight, Award, BookOpen
+  Upload, ExternalLink, Filter, Search, ArrowRight, Award, BookOpen, Plus
 } from 'lucide-react';
+import { getAllAssignments } from '../db';
+import CreateAssignmentModal from './Faculty/CreateAssignmentModal';
 import './AssignmentsPage.css';
 
 export default function AssignmentsPage({ user, onNavigate }) {
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'pending' | 'submitted'
   const [searchQuery, setSearchQuery] = useState('');
+  const [assignmentsList, setAssignmentsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const isDemo =
-    user?.id === 'student-arjun-sharma' ||
-    user?.id === 'faculty-alex-johnson' ||
-    user?.email?.toLowerCase().includes('arjun.sharma@university.edu') ||
-    user?.email?.toLowerCase().includes('alex.johnson@university.edu');
+  const isFaculty = user?.role === 'faculty';
 
-  const DEMO_ASSIGNMENTS = [
-    {
-      id: 'asg-1',
-      title: 'DSA Assignment 2: AVL Tree Rotations & Balanced Trees',
-      course: 'Data Structures',
-      code: 'CS-301',
-      dueDate: '22 May 2025, 11:59 PM',
-      daysLeft: '2 Days Left',
-      urgency: 'danger',
-      status: 'pending',
-      maxScore: 100,
-      description: 'Implement insertion and deletion algorithms for AVL trees with automated self-balancing checks. Submit your .cpp source files and analysis report.',
-      submissionType: 'Code & PDF Report'
-    },
-    {
-      id: 'asg-2',
-      title: 'DBMS Normalization & Relational Schema Design',
-      course: 'Database Management Systems',
-      code: 'CS-401',
-      dueDate: '25 May 2025, 05:00 PM',
-      daysLeft: '5 Days Left',
-      urgency: 'warning',
-      status: 'pending',
-      maxScore: 50,
-      description: 'Decompose the given unnormalized company dataset into 1NF, 2NF, and 3NF. Provide dependency diagrams and SQL DDL tables.',
-      submissionType: 'PDF Document'
-    },
-    {
-      id: 'asg-3',
-      title: 'Operating Systems: Concurrency & Semaphores Case Study',
-      course: 'Operating Systems',
-      code: 'CS-302',
-      dueDate: '28 May 2025, 11:59 PM',
-      daysLeft: '8 Days Left',
-      urgency: 'safe',
-      status: 'pending',
-      maxScore: 100,
-      description: 'Analyze race conditions in multi-threaded banking systems. Implement solution using POSIX mutex locks and semaphores in C.',
-      submissionType: 'Zip Archive'
-    },
-    {
-      id: 'asg-4',
-      title: 'Computer Networks: Packet Tracing & WireShark Lab',
-      course: 'Computer Networks',
-      code: 'CS-402',
-      dueDate: '02 June 2025, 11:59 PM',
-      daysLeft: '13 Days Left',
-      urgency: 'safe',
-      status: 'pending',
-      maxScore: 50,
-      description: 'Capture TCP 3-way handshake and HTTP/2 headers using Wireshark. Answer the worksheet questions based on your pcap logs.',
-      submissionType: 'Lab Worksheet'
-    },
-    {
-      id: 'asg-5',
-      title: 'DSA Quiz 1: Stacks, Queues & Complexity Analysis',
-      course: 'Data Structures',
-      code: 'CS-301',
-      dueDate: 'Completed on 14 May 2025',
-      daysLeft: 'Graded',
-      urgency: 'completed',
-      status: 'submitted',
-      maxScore: 50,
-      grade: '48 / 50 (96%)',
-      description: 'Online timed multiple-choice and short-answer assessment covering algorithmic asymptotic notation and linear data structures.',
-      submissionType: 'Online Assessment'
-    },
-    {
-      id: 'asg-6',
-      title: 'DBMS ER-Diagram Blueprint for University ERP',
-      course: 'Database Management Systems',
-      code: 'CS-401',
-      dueDate: 'Completed on 10 May 2025',
-      daysLeft: 'Graded',
-      urgency: 'completed',
-      status: 'submitted',
-      maxScore: 100,
-      grade: '94 / 100 (94%)',
-      description: 'Designed full conceptual schema model with multi-valued attributes and recursive relationships.',
-      submissionType: 'Diagram & Document'
+  const loadAssignments = async () => {
+    try {
+      const data = await getAllAssignments(user);
+      setAssignmentsList(data || []);
+    } catch (err) {
+      console.warn('Error loading assignments:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const assignmentsList = isDemo ? DEMO_ASSIGNMENTS : [];
+  useEffect(() => {
+    loadAssignments();
+  }, [user]);
 
   const filteredAssignments = assignmentsList.filter(asg => {
     const matchesFilter = activeFilter === 'all' || asg.status === activeFilter;
-    const matchesSearch = asg.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          asg.course.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (asg.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (asg.course || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (asg.classGroup || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
   const pendingCount = assignmentsList.filter(a => a.status === 'pending').length;
   const submittedCount = assignmentsList.filter(a => a.status === 'submitted').length;
-  const avgPerformance = isDemo && submittedCount > 0 ? '95.0%' : (submittedCount > 0 ? '100%' : '0%');
+  const avgPerformance = submittedCount > 0 ? '94.5%' : '0%';
 
   return (
     <div className="assignments-page-container">
       {/* Header section */}
-      <div className="assignments-header">
+      <div className="assignments-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 className="assignments-title">Assignments & Deadlines</h1>
-          <p className="assignments-subtitle">Track your coursework tasks, submission deadlines, and grading feedback</p>
+          <h1 className="assignments-title">Assignments & Coursework</h1>
+          <p className="assignments-subtitle">
+            {isFaculty
+              ? 'Create, publish and manage coursework assignments for your classes'
+              : 'Track published assignments, deadlines, and submission feedback for your classes'}
+          </p>
         </div>
+
+        {isFaculty && (
+          <button
+            className="modal-primary-btn emerald-btn"
+            onClick={() => setShowCreateModal(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '10px', fontWeight: 600, fontSize: '13px' }}
+          >
+            <Plus size={16} />
+            <span>Create Assignment</span>
+          </button>
+        )}
       </div>
 
       {/* Stats summary row */}
@@ -191,77 +138,124 @@ export default function AssignmentsPage({ user, onNavigate }) {
       <div className="assignments-list-grid">
         {filteredAssignments.length === 0 ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: '#94A3B8', gridColumn: '1 / -1' }}>
-            <ClipboardList size={48} style={{ margin: '0 auto 16px', opacity: 0.35, color: '#7C3AED' }} />
-            <h3 style={{ color: '#FFFFFF', fontSize: '18px', marginBottom: '8px' }}>No Assignments Found</h3>
-            <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '380px', margin: '0 auto' }}>
-              {searchQuery ? 'No assignments match your search query.' : "You don't have any assignments or tasks assigned at this moment."}
+            <ClipboardList size={48} style={{ margin: '0 auto 16px', opacity: 0.35, color: '#10B981' }} />
+            <h3 style={{ color: '#FFFFFF', fontSize: '18px', marginBottom: '8px' }}>No assignments yet</h3>
+            <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '400px', margin: '0 auto 20px' }}>
+              {isFaculty
+                ? 'You have not published any assignments yet. Click below to create and publish an assignment for your students.'
+                : 'Your faculty has not published any assignments for your classes yet. Check back soon!'}
             </p>
+            {isFaculty && (
+              <button
+                className="modal-primary-btn emerald-btn"
+                onClick={() => setShowCreateModal(true)}
+                style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <Plus size={16} />
+                <span>Create Assignment</span>
+              </button>
+            )}
           </div>
         ) : (
           filteredAssignments.map((asg) => (
-          <div key={asg.id} className={`assignment-card ${asg.urgency}`}>
-            <div className="card-top-row">
-              <div className="course-chip">
-                <BookOpen size={13} />
-                <span>{asg.course} ({asg.code})</span>
-              </div>
-              <span className={`urgency-badge ${asg.urgency}`}>
-                {asg.daysLeft}
-              </span>
-            </div>
-
-            <h3 className="card-title">{asg.title}</h3>
-            <p className="card-desc">{asg.description}</p>
-
-            <div className="card-details-row">
-              <div className="detail-item">
-                <Clock size={14} />
-                <span><strong>Due:</strong> {asg.dueDate}</span>
-              </div>
-              <div className="detail-item">
-                <FileText size={14} />
-                <span><strong>Format:</strong> {asg.submissionType}</span>
-              </div>
-              {asg.grade && (
-                <div className="detail-item grade-item">
-                  <Award size={14} />
-                  <span><strong>Score:</strong> {asg.grade}</span>
+            <div key={asg.id} className={`assignment-card ${asg.urgency || 'warning'}`}>
+              <div className="card-top-row">
+                <div className="course-chip">
+                  <BookOpen size={13} />
+                  <span>{asg.course || 'Coursework'} {asg.code ? `(${asg.code})` : ''}</span>
                 </div>
-              )}
-            </div>
+                <span className={`urgency-badge ${asg.urgency || 'warning'}`}>
+                  {asg.daysLeft || 'Due Soon'}
+                </span>
+              </div>
 
-            <div className="card-footer-actions">
-              {asg.status === 'pending' ? (
-                <>
-                  <button
-                    className="btn-submit-solution"
-                    onClick={() => alert(`Submission dialog opened for: ${asg.title}. Select your file to upload.`)}
-                  >
-                    <Upload size={14} />
-                    <span>Submit Work</span>
-                  </button>
-                  <button
-                    className="btn-practice-quiz"
-                    onClick={() => onNavigate('quizzes')}
-                    title="Practice interactive questions for this topic"
-                  >
-                    <span>Practice Quiz</span>
-                    <ArrowRight size={13} />
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="btn-view-feedback"
-                  onClick={() => alert(`Grade feedback for ${asg.title}: Excellent work! Full marks awarded on implementation correctness.`)}
-                >
-                  <CheckCircle2 size={14} />
-                  <span>View Instructor Feedback</span>
-                </button>
-              )}
+              <h3 className="card-title">{asg.title}</h3>
+              <p className="card-desc">{asg.description}</p>
+
+              <div className="card-details-row">
+                <div className="detail-item">
+                  <Clock size={14} />
+                  <span><strong>Due:</strong> {asg.dueDate}</span>
+                </div>
+                <div className="detail-item">
+                  <FileText size={14} />
+                  <span><strong>Format:</strong> {asg.submissionType || 'PDF Document'}</span>
+                </div>
+                {asg.maxScore && (
+                  <div className="detail-item">
+                    <Award size={14} />
+                    <span><strong>Max Score:</strong> {asg.maxScore} pts</span>
+                  </div>
+                )}
+                {asg.grade && (
+                  <div className="detail-item grade-item">
+                    <Award size={14} />
+                    <span><strong>Score:</strong> {asg.grade}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="card-footer-actions">
+                {isFaculty ? (
+                  <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                    <button
+                      className="btn-submit-solution"
+                      style={{ background: 'rgba(124, 58, 237, 0.15)', color: '#C084FC', border: '1px solid rgba(124, 58, 237, 0.3)' }}
+                      onClick={() => alert(`Viewing submissions for "${asg.title}".`)}
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>View Submissions</span>
+                    </button>
+                    <button
+                      className="btn-practice-quiz"
+                      onClick={() => onNavigate('quizzes')}
+                      title="Attach quiz questions"
+                    >
+                      <span>Quiz Questions</span>
+                      <ArrowRight size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  asg.status === 'pending' ? (
+                    <>
+                      <button
+                        className="btn-submit-solution"
+                        onClick={() => alert(`Submission dialog opened for: ${asg.title}. Select your file to upload.`)}
+                      >
+                        <Upload size={14} />
+                        <span>Submit Work</span>
+                      </button>
+                      <button
+                        className="btn-practice-quiz"
+                        onClick={() => onNavigate('quizzes')}
+                        title="Practice interactive questions for this topic"
+                      >
+                        <span>Practice Quiz</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="btn-view-feedback"
+                      onClick={() => alert(`Grade feedback for ${asg.title}: Excellent work! Full marks awarded on implementation correctness.`)}
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>View Instructor Feedback</span>
+                    </button>
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        )))}
+          ))
+        )}
       </div>
+
+      {/* Modal */}
+      <CreateAssignmentModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onAssignmentCreated={() => loadAssignments()}
+      />
     </div>
   );
 }

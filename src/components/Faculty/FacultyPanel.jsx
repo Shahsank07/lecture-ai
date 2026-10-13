@@ -7,10 +7,11 @@ import {
   Search, ArrowRight, BookMarked, UserCheck, BarChart3,
   Video, UploadCloud, FileText, CheckCircle2, X
 } from 'lucide-react';
-import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources } from '../../db';
+import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources, getAllAssignments, deleteAssignment } from '../../db';
 import UploadNotesModal from './UploadNotesModal';
 import UploadQuizModal from './UploadQuizModal';
 import MarkAttendanceModal from './MarkAttendanceModal';
+import CreateAssignmentModal from './CreateAssignmentModal';
 import NotificationsModal from '../NotificationsModal';
 import './FacultyPanel.css';
 
@@ -26,6 +27,8 @@ export default function FacultyPanel({
   const [showUploadNotes, setShowUploadNotes] = useState(false);
   const [showUploadQuiz, setShowUploadQuiz] = useState(false);
   const [showAttendance, setShowAttendance] = useState(false);
+  const [showCreateAssignment, setShowCreateAssignment] = useState(false);
+  const [facultyAssignments, setFacultyAssignments] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedClassForAtt, setSelectedClassForAtt] = useState('Data Structures');
 
@@ -63,6 +66,15 @@ export default function FacultyPanel({
   const [savedResourcesList, setSavedResourcesList] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
 
+  const loadAssignmentsData = async () => {
+    try {
+      const asgs = await getAllAssignments(user);
+      setFacultyAssignments(asgs || []);
+    } catch (e) {
+      console.warn('Failed to load assignments:', e);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -74,7 +86,8 @@ export default function FacultyPanel({
         console.warn('Failed to load resources:', e);
       }
     })();
-  }, []);
+    loadAssignmentsData();
+  }, [user]);
 
   useEffect(() => {
     if (!isDemo && user?.id) {
@@ -266,8 +279,10 @@ export default function FacultyPanel({
         setShowAttendance(true);
         break;
       case 'classes':
-      case 'lecture-mgmt':
         setActiveTab('classes');
+        break;
+      case 'lecture-mgmt':
+        setActiveTab('lecture-mgmt');
         break;
       case 'assignments':
         setActiveTab('assignments');
@@ -722,56 +737,52 @@ export default function FacultyPanel({
           </>
         )}
 
-        {/* ================= TAB: MY CLASSES & LECTURE MANAGEMENT ================= */}
-        {(activeTab === 'classes' || activeTab === 'lecture-mgmt') && (
+        {/* ================= TAB: MY CLASSES (Active Courses, Students & Syllabus) ================= */}
+        {activeTab === 'classes' && (
           <div className="faculty-classes-view">
             <div className="subview-header">
               <div>
-                <h2>Course & Lecture Management</h2>
-                <p>Manage syllabus, live sessions, attendance, and study materials</p>
+                <h2>My Teaching Classes</h2>
+                <p>Manage your assigned course batches, enrolled students, syllabus, and study materials</p>
               </div>
-              <button className="subview-back-to-dash" onClick={() => setActiveTab('dashboard')}>
-                ← Back to Dashboard
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="modal-primary-btn purple-btn"
+                  onClick={() => setShowLecturePicker(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Radio size={16} />
+                  <span>Start Live Lecture</span>
+                </button>
+                <button className="subview-back-to-dash" onClick={() => setActiveTab('dashboard')}>
+                  ← Back to Dashboard
+                </button>
+              </div>
             </div>
 
             <div className="classes-cards-grid">
               {(() => {
-                const allClassCards = [
-                  ...todayClasses,
-                  ...upcomingLectures.map(u => ({ id: u.id, name: u.name, section: u.section, room: u.room, students: 36, time: u.time }))
-                ];
-                if (allClassCards.length === 0) {
+                const classCards = todayClasses;
+                if (classCards.length === 0) {
                   return (
                     <div style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
                       <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#A855F7' }} />
-                      <h3 style={{ color: '#F1F5F9', fontSize: '18px', marginBottom: '8px' }}>No Classes Yet</h3>
+                      <h3 style={{ color: '#F1F5F9', fontSize: '18px', marginBottom: '8px' }}>No Classes Configured</h3>
                       <p style={{ color: '#64748B', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px' }}>
-                        Create your first class or start a live lecture to begin recording and generating AI summaries.
+                        You don't have any active classes configured yet. Start a live lecture anytime to record and generate AI summaries.
                       </p>
                       <button
                         onClick={() => setShowLecturePicker(true)}
-                        style={{
-                          background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
-                          border: 'none',
-                          color: '#fff',
-                          padding: '12px 24px',
-                          borderRadius: '12px',
-                          cursor: 'pointer',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}
+                        className="modal-primary-btn purple-btn"
+                        style={{ margin: '0 auto' }}
                       >
-                        <Radio size={18} />
+                        <Radio size={16} />
                         <span>Start Live Lecture</span>
                       </button>
                     </div>
                   );
                 }
-                return allClassCards.map(cls => (
+                return classCards.map(cls => (
                   <div key={cls.id} className="faculty-class-card">
                     <div className="f-class-header">
                       <h3>{cls.name}</h3>
@@ -780,7 +791,7 @@ export default function FacultyPanel({
                     <div className="f-class-meta">
                       <div><Clock size={14} /> <span>{cls.time || '10:00 AM'}</span></div>
                       <div><MapPin size={14} /> <span>{cls.room}</span></div>
-                      <div><Users size={14} /> <span>{cls.students || 0} Students</span></div>
+                      <div><Users size={14} /> <span>{cls.students || 0} Students Enrolled</span></div>
                     </div>
                     <div className="f-class-actions">
                       <button
@@ -795,7 +806,7 @@ export default function FacultyPanel({
                         onClick={() => setShowUploadNotes(true)}
                       >
                         <UploadCloud size={14} />
-                        <span>Upload Notes</span>
+                        <span>Upload Notes & PDFs</span>
                       </button>
                       <button
                         className="f-btn att-btn"
@@ -805,12 +816,92 @@ export default function FacultyPanel({
                         }}
                       >
                         <CheckSquare size={14} />
-                        <span>Attendance</span>
+                        <span>Take Attendance</span>
                       </button>
                     </div>
                   </div>
                 ));
               })()}
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB: LECTURE MANAGEMENT (Schedule & Timetable) ================= */}
+        {activeTab === 'lecture-mgmt' && (
+          <div className="faculty-classes-view">
+            <div className="subview-header">
+              <div>
+                <h2>Lecture Schedule & Management</h2>
+                <p>View upcoming lecture calendar, room allocations, and schedule upcoming class sessions</p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="modal-primary-btn purple-btn"
+                  onClick={() => setShowLecturePicker(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Plus size={16} />
+                  <span>Start New Lecture</span>
+                </button>
+                <button className="subview-back-to-dash" onClick={() => setActiveTab('dashboard')}>
+                  ← Back to Dashboard
+                </button>
+              </div>
+            </div>
+
+            <div className="classes-cards-grid">
+              {upcomingLectures.length === 0 ? (
+                <div style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
+                  <Calendar size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#38BDF8' }} />
+                  <h3 style={{ color: '#F1F5F9', fontSize: '18px', marginBottom: '8px' }}>No Upcoming Scheduled Lectures</h3>
+                  <p style={{ color: '#64748B', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px' }}>
+                    All lectures scheduled for future dates will appear here with calendar slots and room details.
+                  </p>
+                  <button
+                    onClick={() => setShowLecturePicker(true)}
+                    className="modal-primary-btn purple-btn"
+                    style={{ margin: '0 auto' }}
+                  >
+                    <Radio size={16} />
+                    <span>Start Live Session Now</span>
+                  </button>
+                </div>
+              ) : (
+                upcomingLectures.map(item => (
+                  <div key={item.id} className="faculty-class-card" style={{ borderLeft: '4px solid #38BDF8' }}>
+                    <div className="f-class-header">
+                      <div>
+                        <span style={{ fontSize: '11px', color: '#38BDF8', fontWeight: 700, textTransform: 'uppercase' }}>
+                          {item.month} {item.day}
+                        </span>
+                        <h3 style={{ marginTop: '2px' }}>{item.name}</h3>
+                      </div>
+                      <span className="f-class-badge">{item.section}</span>
+                    </div>
+                    <div className="f-class-meta">
+                      <div><Clock size={14} /> <span>{item.time}</span></div>
+                      <div><MapPin size={14} /> <span>{item.room}</span></div>
+                      <div><Users size={14} /> <span>Scheduled Slot</span></div>
+                    </div>
+                    <div className="f-class-actions">
+                      <button
+                        className="f-btn start-btn"
+                        onClick={() => handleStartClassLecture({ id: item.id, name: item.name, section: item.section, room: item.room })}
+                      >
+                        <Radio size={14} />
+                        <span>Start Live Session</span>
+                      </button>
+                      <button
+                        className="f-btn notes-btn"
+                        onClick={() => setShowUploadNotes(true)}
+                      >
+                        <UploadCloud size={14} />
+                        <span>Pre-Upload Study Notes</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -885,57 +976,86 @@ export default function FacultyPanel({
           </div>
         )}
 
-        {/* ================= TAB: ASSIGNMENTS ================= */}
+        {/* ================= TAB: ASSIGNMENTS (Live Database Driven) ================= */}
         {activeTab === 'assignments' && (
           <div className="faculty-classes-view">
             <div className="subview-header">
               <div>
                 <h2>Assignments Manager</h2>
-                <p>Create assignments, set deadlines, and grade student submissions</p>
+                <p>Create assignments, set deadlines, and automatically publish to students</p>
               </div>
-              <button className="subview-back-to-dash" onClick={() => setActiveTab('dashboard')}>
-                ← Back to Dashboard
-              </button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  className="modal-primary-btn emerald-btn"
+                  onClick={() => setShowCreateAssignment(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Plus size={16} />
+                  <span>Create Assignment</span>
+                </button>
+                <button className="subview-back-to-dash" onClick={() => setActiveTab('dashboard')}>
+                  ← Back to Dashboard
+                </button>
+              </div>
             </div>
 
             <div className="classes-cards-grid">
-              <div className="faculty-class-card">
-                <div className="f-class-header">
-                  <h3>DSA Assignment 2: AVL Tree Rotations</h3>
-                  <span className="f-class-badge">Data Structures</span>
-                </div>
-                <div className="f-class-meta">
-                  <div><Calendar size={14} /> <span>Due: May 25, 2025</span></div>
-                  <div><Users size={14} /> <span>38 / 42 Submitted</span></div>
-                </div>
-                <div className="f-class-actions">
-                  <button className="f-btn notes-btn" onClick={() => alert('Viewing student submissions...')}>
-                    <span>View 38 Submissions</span>
-                  </button>
-                  <button className="f-btn att-btn" onClick={() => setShowUploadNotes(true)}>
-                    <span>Upload Solution Notes</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="faculty-class-card">
-                <div className="f-class-header">
-                  <h3>DBMS Practical: SQL Schema Normalization</h3>
-                  <span className="f-class-badge">Database Management</span>
-                </div>
-                <div className="f-class-meta">
-                  <div><Calendar size={14} /> <span>Due: May 28, 2025</span></div>
-                  <div><Users size={14} /> <span>34 / 38 Submitted</span></div>
-                </div>
-                <div className="f-class-actions">
-                  <button className="f-btn notes-btn" onClick={() => alert('Viewing student submissions...')}>
-                    <span>View 34 Submissions</span>
-                  </button>
-                  <button className="f-btn att-btn" onClick={() => setShowUploadNotes(true)}>
-                    <span>Upload Schema Notes</span>
+              {facultyAssignments.length === 0 ? (
+                <div style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
+                  <ClipboardCheck size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#10B981' }} />
+                  <h3 style={{ color: '#F1F5F9', fontSize: '18px', marginBottom: '8px' }}>No assignments yet</h3>
+                  <p style={{ color: '#64748B', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px' }}>
+                    You have not published any assignments yet. Create one now and it will automatically appear on your students' portals.
+                  </p>
+                  <button
+                    onClick={() => setShowCreateAssignment(true)}
+                    className="modal-primary-btn emerald-btn"
+                    style={{ margin: '0 auto', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Plus size={16} />
+                    <span>Create Assignment</span>
                   </button>
                 </div>
-              </div>
+              ) : (
+                facultyAssignments.map(asg => (
+                  <div key={asg.id} className="faculty-class-card" style={{ borderLeft: '4px solid #10B981' }}>
+                    <div className="f-class-header">
+                      <h3>{asg.title}</h3>
+                      <span className="f-class-badge">{asg.course || asg.classGroup}</span>
+                    </div>
+                    <div className="f-class-meta">
+                      <div><Calendar size={14} /> <span>Due: {asg.dueDate}</span></div>
+                      <div><FileText size={14} /> <span>Format: {asg.submissionType || 'PDF Document'}</span></div>
+                      <div><Users size={14} /> <span>Max Score: {asg.maxScore || 100} pts</span></div>
+                    </div>
+                    <p style={{ fontSize: '12.5px', color: '#94A3B8', margin: '2px 0 6px 0', lineHeight: '1.4' }}>
+                      {asg.description}
+                    </p>
+                    <div className="f-class-actions">
+                      <button
+                        className="f-btn notes-btn"
+                        onClick={() => alert(`Submissions summary for "${asg.title}": 0 submissions pending review.`)}
+                      >
+                        <CheckCircle2 size={14} />
+                        <span>View Submissions</span>
+                      </button>
+                      <button
+                        className="f-btn att-btn"
+                        onClick={async () => {
+                          if (confirm(`Delete assignment "${asg.title}"?`)) {
+                            await deleteAssignment(asg.id);
+                            loadAssignmentsData();
+                          }
+                        }}
+                        style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      >
+                        <Trash2 size={14} />
+                        <span>Delete Assignment</span>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -1311,6 +1431,12 @@ export default function FacultyPanel({
         isOpen={showAttendance}
         defaultClass={selectedClassForAtt}
         onClose={() => setShowAttendance(false)}
+      />
+
+      <CreateAssignmentModal
+        isOpen={showCreateAssignment}
+        onClose={() => setShowCreateAssignment(false)}
+        onAssignmentCreated={() => loadAssignmentsData()}
       />
 
       <NotificationsModal
