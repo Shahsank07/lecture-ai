@@ -118,37 +118,42 @@ export default function ClassesPage({
         </div>
 
         <div className="classes-header-actions">
-          <button className="btn-create-class-primary" onClick={onCreateClass}>
-            <Plus size={18} />
-            <span>Create New Class</span>
-          </button>
+          {user?.role !== 'student' && activeTab === 'classes' && (
+            <button className="btn-create-class-primary" onClick={onCreateClass}>
+              <Plus size={18} />
+              <span>Create New Class</span>
+            </button>
+          )}
+          {user?.role !== 'student' && activeTab === 'lectures' && (
+            <button className="btn-create-class-primary" onClick={() => onNavigate('live-lecture')}>
+              <Video size={18} />
+              <span>Start Live Lecture</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Tabs and Search Bar */}
+      {/* View Badge and Search Bar */}
       <div className="classes-page-controls">
-        <div className="classes-tab-pills">
-          <button
-            className={`tab-pill-btn ${activeTab === 'classes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('classes')}
-          >
-            <BookOpen size={16} />
-            <span>Classes ({subjects.length})</span>
-          </button>
-          <button
-            className={`tab-pill-btn ${activeTab === 'lectures' ? 'active' : ''}`}
-            onClick={() => setActiveTab('lectures')}
-          >
-            <Video size={16} />
-            <span>Lectures ({allLectures.length})</span>
-          </button>
-          <button
-            className={`tab-pill-btn ${activeTab === 'notes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('notes')}
-          >
-            <FileText size={16} />
-            <span>Notes ({filteredNotes.length})</span>
-          </button>
+        <div className="classes-view-badge-wrap">
+          {activeTab === 'classes' && (
+            <div className="classes-view-badge classes">
+              <BookOpen size={16} />
+              <span>Classes ({filteredSubjects.length})</span>
+            </div>
+          )}
+          {activeTab === 'lectures' && (
+            <div className="classes-view-badge lectures">
+              <Video size={16} />
+              <span>Lectures ({filteredLectures.length})</span>
+            </div>
+          )}
+          {activeTab === 'notes' && (
+            <div className="classes-view-badge notes">
+              <FileText size={16} />
+              <span>Notes ({filteredNotes.length})</span>
+            </div>
+          )}
         </div>
 
         <div className="classes-search-input-wrap">
@@ -174,12 +179,16 @@ export default function ClassesPage({
               <p>
                 {searchQuery
                   ? 'Try searching with different keywords or clear the filter.'
-                  : 'Get started by creating your first subject or classroom studio. You can record lectures and generate smart notes automatically.'}
+                  : user?.role === 'student'
+                    ? 'You are not enrolled in any classes yet. Your professor will enroll you or provide a course invite code.'
+                    : 'Get started by creating your first subject or classroom studio. You can record lectures and generate smart notes automatically.'}
               </p>
-              <button className="btn-create-first-class" onClick={onCreateClass}>
-                <Plus size={18} />
-                <span>Create Your First Class</span>
-              </button>
+              {user?.role !== 'student' && (
+                <button className="btn-create-first-class" onClick={onCreateClass}>
+                  <Plus size={18} />
+                  <span>Create Your First Class</span>
+                </button>
+              )}
             </div>
           ) : (
             <div className="subjects-cards-grid">
@@ -266,21 +275,25 @@ export default function ClassesPage({
               <p>
                 {searchQuery
                   ? 'No lectures match your search query.'
-                  : 'Start a live lecture in any of your classes or enter a lecture code above to join your teacher\'s session.'}
+                  : user?.role === 'student'
+                    ? 'Enter a lecture code above to join your teacher\'s session and access synced lecture recordings.'
+                    : 'Start a live lecture in any of your classes or enter a lecture code above to join your teacher\'s session.'}
               </p>
-              {subjects.length > 0 ? (
-                <button
-                  className="btn-create-first-class"
-                  onClick={() => onNavigate(`subject:${subjects[0].id}`)}
-                >
-                  <Play size={18} />
-                  <span>Open {subjects[0].name} to Record</span>
-                </button>
-              ) : (
-                <button className="btn-create-first-class" onClick={onCreateClass}>
-                  <Plus size={18} />
-                  <span>Create Class to Start Recording</span>
-                </button>
+              {user?.role !== 'student' && (
+                subjects.length > 0 ? (
+                  <button
+                    className="btn-create-first-class"
+                    onClick={() => onNavigate(`subject:${subjects[0].id}`)}
+                  >
+                    <Play size={18} />
+                    <span>Open {subjects[0].name} to Record</span>
+                  </button>
+                ) : (
+                  <button className="btn-create-first-class" onClick={onCreateClass}>
+                    <Plus size={18} />
+                    <span>Create Class to Start Recording</span>
+                  </button>
+                )
               )}
             </div>
           ) : (

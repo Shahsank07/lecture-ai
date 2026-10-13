@@ -38,9 +38,12 @@ function setLocal(key, val) {
   try { localStorage.setItem('vn_' + key, JSON.stringify(val)); } catch {}
 }
 
-// ─── Subjects ────────────────────────────────────────
 export async function getAllSubjects(userId) {
-  const localSubs = getLocal('subjects').filter(s => !userId || s.userId === userId || s.user_id === userId);
+  const allLocal = getLocal('subjects');
+  let localSubs = allLocal.filter(s => !userId || s.userId === userId || s.user_id === userId);
+  if (localSubs.length === 0 && allLocal.length > 0) {
+    localSubs = allLocal;
+  }
   
   // If we already have local subjects, return immediately! Sync Supabase in background
   if (localSubs.length > 0) {
