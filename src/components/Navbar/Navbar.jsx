@@ -5,6 +5,7 @@ import {
   Settings, LogOut, Search, ChevronLeft 
 } from 'lucide-react';
 import SettingsModal from '../Settings/SettingsModal';
+import { getAllNotifications, markAllNotificationsRead, deleteNotification } from '../../db';
 import './Navbar.css';
 
 function Navbar({
@@ -26,23 +27,33 @@ function Navbar({
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: '1', title: 'Lecture Saved', desc: 'Data Structures – Trees session was saved to IndexedDB', time: '10m ago', read: false },
-    { id: '2', title: 'AI Quiz Ready', desc: 'New quiz generated for Database Normalization', time: '1h ago', read: false },
-    { id: '3', title: 'Study Streak Milestone', desc: 'You reached a 7-day study streak! 🎉', time: '1d ago', read: true }
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  const loadNavbarNotifications = async () => {
+    try {
+      const data = await getAllNotifications(user);
+      setNotifications(data || []);
+    } catch (e) {
+      setNotifications([]);
+    }
+  };
+
+  useEffect(() => {
+    loadNavbarNotifications();
+  }, [user]);
 
   const sidebarRef = useRef(null);
   const notificationRef = useRef(null);
   const filterRef = useRef(null);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => n.unread || !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const markAllRead = async () => {
+    await markAllNotificationsRead(user);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, unread: false })));
   };
 
-  const clearAllNotifications = () => {
+  const clearAllNotifications = async () => {
     setNotifications([]);
   };
 

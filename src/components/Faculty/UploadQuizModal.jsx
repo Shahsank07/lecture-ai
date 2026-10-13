@@ -4,6 +4,7 @@ import {
   Upload, Clock, Award, Calendar, FileQuestion, ArrowRight
 } from 'lucide-react';
 import { generateId } from '../../utils/helpers';
+import { addNotification } from '../../db';
 import './FacultyPanel.css';
 
 const CLASSES = [
@@ -137,6 +138,15 @@ export default function UploadQuizModal({ isOpen, onClose, onQuizCreated }) {
     try {
       const existing = JSON.parse(localStorage.getItem('lecture_quizzes') || '[]');
       localStorage.setItem('lecture_quizzes', JSON.stringify([quizData, ...existing]));
+      addNotification({
+        id: 'notif-' + quizData.id,
+        title: `Quiz Live: ${quizData.title}`,
+        desc: `New quiz available for ${quizData.classGroup}. Duration: ${quizData.duration} mins.`,
+        time: 'Just now',
+        type: 'ai',
+        targetRole: 'all',
+        unread: true
+      });
     } catch (err) {
       console.warn('Could not save quiz:', err);
     }

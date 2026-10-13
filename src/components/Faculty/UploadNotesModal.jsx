@@ -4,7 +4,7 @@ import {
   FolderPlus, Trash2, ArrowRight, FileCheck, Layers, Loader2,
   Check, HelpCircle, AlertCircle, FileCode, Tag
 } from 'lucide-react';
-import { saveResource } from '../../db';
+import { saveResource, addNotification } from '../../db';
 import { generateId } from '../../utils/helpers';
 import { extractPdfPoints } from '../../services/aiService';
 import './FacultyPanel.css';
@@ -144,6 +144,15 @@ export default function UploadNotesModal({ isOpen, onClose, onUploaded }) {
       };
 
       await saveResource(noteResource);
+      await addNotification({
+        id: 'notif-' + noteResource.id,
+        title: `Study Material: ${noteResource.title}`,
+        desc: `New lecture notes uploaded for ${noteResource.subject || noteResource.classGroup}`,
+        time: 'Just now',
+        type: 'feature',
+        targetRole: 'all',
+        unread: true
+      });
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);

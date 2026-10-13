@@ -7,7 +7,7 @@ import {
   Search, ArrowRight, BookMarked, UserCheck, BarChart3,
   Video, UploadCloud, FileText, CheckCircle2, X
 } from 'lucide-react';
-import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources, getAllAssignments, deleteAssignment, getAllAnnouncements, saveAnnouncement, deleteAnnouncement } from '../../db';
+import { getAllSubjects, getAllClasses, getClassesBySubject, getAllSavedResources, getAllAssignments, deleteAssignment, getAllAnnouncements, saveAnnouncement, deleteAnnouncement, getAllNotifications } from '../../db';
 import UploadNotesModal from './UploadNotesModal';
 import UploadQuizModal from './UploadQuizModal';
 import MarkAttendanceModal from './MarkAttendanceModal';
@@ -30,7 +30,17 @@ export default function FacultyPanel({
   const [showCreateAssignment, setShowCreateAssignment] = useState(false);
   const [facultyAssignments, setFacultyAssignments] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [selectedClassForAtt, setSelectedClassForAtt] = useState('Data Structures');
+
+  const loadNotificationsCount = async () => {
+    try {
+      const notifs = await getAllNotifications(user);
+      setUnreadNotifsCount((notifs || []).filter(n => n.unread).length);
+    } catch (e) {
+      setUnreadNotifsCount(0);
+    }
+  };
 
   // Live Lecture picker modal
   const [showLecturePicker, setShowLecturePicker] = useState(false);
@@ -82,6 +92,7 @@ export default function FacultyPanel({
     })();
     loadAssignmentsData();
     loadAnnouncementsData();
+    loadNotificationsCount();
   }, [user]);
 
   useEffect(() => {
@@ -246,6 +257,15 @@ export default function FacultyPanel({
       classGroup: 'All Classes',
       author: user?.name ? `${user.name} (${user.department || 'Faculty'})` : 'Dr. Alex Johnson',
       time: 'Just now'
+    });
+    await addNotification({
+      id: 'notif-' + created.id,
+      title: `Announcement: ${created.title}`,
+      desc: created.content || created.text || 'Important academic notice posted.',
+      time: 'Just now',
+      type: 'notice',
+      targetRole: 'all',
+      unread: true
     });
     setAnnouncementsList(prev => [created, ...prev]);
     setAnnouncementTitle('');
@@ -453,7 +473,9 @@ export default function FacultyPanel({
               onClick={() => setShowNotifications(prev => !prev)}
             >
               <Bell size={20} />
-              <span className="notif-badge">3</span>
+              {unreadNotifsCount > 0 && (
+                <span className="notif-badge">{unreadNotifsCount}</span>
+              )}
             </button>
 
             {/* Date Display */}
@@ -1450,8 +1472,12 @@ export default function FacultyPanel({
 
       <NotificationsModal
         isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
+        onClose={() => {
+          setShowNotifications(false);
+          loadNotificationsCount();
+        }}
         role="faculty"
+        user={user}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import {
   Bell, Play, Download, MoreVertical, Clock, MapPin,
   ChevronRight, ArrowRight, CheckCircle2, AlertCircle
 } from 'lucide-react';
-import { getAllAssignments, getAllAnnouncements, getAllClasses, getJoinedLectures, getAllBookmarks } from '../../db';
+import { getAllAssignments, getAllAnnouncements, getAllClasses, getJoinedLectures, getAllBookmarks, getAllNotifications } from '../../db';
 import NotificationsModal from '../NotificationsModal';
 import './StudentPanel.css';
 
@@ -68,6 +68,16 @@ export default function StudentPanel({
   const [studentAnnouncements, setStudentAnnouncements] = useState([]);
   const [studentLectures, setStudentLectures] = useState([]);
   const [bookmarksCount, setBookmarksCount] = useState(0);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+
+  const loadNotificationsCount = async () => {
+    try {
+      const notifs = await getAllNotifications(user);
+      setUnreadNotifsCount((notifs || []).filter(n => n.unread).length);
+    } catch (e) {
+      setUnreadNotifsCount(0);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -87,6 +97,8 @@ export default function StudentPanel({
 
         const bms = await getAllBookmarks(user?.id);
         setBookmarksCount((bms || []).length);
+
+        await loadNotificationsCount();
       } catch (e) {
         console.warn('StudentPanel data load:', e);
       }
@@ -338,7 +350,9 @@ export default function StudentPanel({
               onClick={() => setShowNotifications(prev => !prev)}
             >
               <Bell size={20} />
-              <span className="notif-badge">3</span>
+              {unreadNotifsCount > 0 && (
+                <span className="notif-badge">{unreadNotifsCount}</span>
+              )}
             </button>
 
             {/* Chat button - opens AI Assistant */}
@@ -749,8 +763,12 @@ export default function StudentPanel({
 
       <NotificationsModal
         isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
+        onClose={() => {
+          setShowNotifications(false);
+          loadNotificationsCount();
+        }}
         role="student"
+        user={user}
       />
     </div>
   );

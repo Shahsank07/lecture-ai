@@ -3,7 +3,7 @@ import {
   Megaphone, Clock, Download, Search, Pin, CheckCircle2,
   User, Plus, Trash2, X, Send
 } from 'lucide-react';
-import { getAllAnnouncements, saveAnnouncement, deleteAnnouncement } from '../db';
+import { getAllAnnouncements, saveAnnouncement, deleteAnnouncement, addNotification } from '../db';
 import './AnnouncementsPage.css';
 
 export default function AnnouncementsPage({ user, onNavigate }) {
@@ -63,6 +63,16 @@ export default function AnnouncementsPage({ user, onNavigate }) {
       author: user?.name ? `${user.name} (${user.department || 'Faculty'})` : 'Faculty Instructor',
       date: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
       time: 'Just now'
+    });
+
+    await addNotification({
+      id: 'notif-' + created.id,
+      title: `Announcement: ${created.title}`,
+      desc: created.content || 'Please check the course portal for details.',
+      time: 'Just now',
+      type: 'notice',
+      targetRole: 'all',
+      unread: true
     });
 
     setAnnouncements(prev => [created, ...prev]);

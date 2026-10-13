@@ -621,3 +621,67 @@ export async function deleteBookmark(id) {
   const local = getLocal('bookmarks').filter(b => b.id !== id);
   setLocal('bookmarks', local);
 }
+
+// ─── Real-time Notifications ──────────────────────────
+export async function getAllNotifications(user) {
+  const local = getLocal('notifications');
+  const role = user?.role || 'student';
+  const userId = user?.id;
+
+  return local.filter(n => {
+    // If targetRole specified, must match user role or 'all'
+    if (n.targetRole && n.targetRole !== 'all' && n.targetRole !== role) {
+      return false;
+    }
+    // If targetUserId specified, must match user id
+    if (n.targetUserId && n.targetUserId !== userId) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export async function addNotification(notification) {
+  if (!notification.id) notification.id = 'notif-' + Date.now();
+  if (!notification.time) notification.time = 'Just now';
+  if (!notification.createdAt) notification.createdAt = new Date().toISOString();
+  if (notification.unread === undefined) notification.unread = true;
+  if (!notification.type) notification.type = 'notice';
+
+  const local = getLocal('notifications');
+  const idx = local.findIndex(n => n.id === notification.id);
+  if (idx >= 0) {
+    local[idx] = { ...local[idx], ...notification };
+  } else {
+    local.unshift(notification);
+  }
+  setLocal('notifications', local);
+  return notification;
+}
+
+export async function markNotificationRead(id) {
+  const local = getLocal('notifications');
+  const updated = local.map(n => n.id === id ? { ...n, unread: false, read: true } : n);
+  setLocal('notifications', updated);
+  return updated;
+}
+
+export async function markAllNotificationsRead(user) {
+  const local = getLocal('notifications');
+  const role = user?.role || 'student';
+  const userId = user?.id;
+
+  const updated = local.map(n => {
+    const isTarget = (!n.targetRole || n.targetRole === 'all' || n.targetRole === role) &&
+                     (!n.targetUserId || n.targetUserId === userId);
+    return isTarget ? { ...n, unread: false, read: true } : n;
+  });
+  setLocal('notifications', updated);
+  return updated;
+}
+
+export async function deleteNotification(id) {
+  const local = getLocal('notifications').filter(n => n.id !== id);
+  setLocal('notifications', local);
+}
+

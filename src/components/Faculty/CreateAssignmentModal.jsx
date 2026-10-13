@@ -4,7 +4,7 @@ import {
   Clock, FileText, Check, AlertCircle, BookOpen, Layers
 } from 'lucide-react';
 import { generateId } from '../../utils/helpers';
-import { saveAssignment } from '../../db';
+import { saveAssignment, addNotification } from '../../db';
 import './FacultyPanel.css';
 
 const DEFAULT_CLASSES = [
@@ -87,6 +87,15 @@ export default function CreateAssignmentModal({ isOpen, onClose, onAssignmentCre
 
     try {
       await saveAssignment(assignmentData);
+      await addNotification({
+        id: 'notif-' + assignmentData.id,
+        title: `New Assignment: ${assignmentData.title}`,
+        desc: `${assignmentData.course} assignment posted. Due: ${assignmentData.dueDate}`,
+        time: 'Just now',
+        type: 'feature',
+        targetRole: 'all',
+        unread: true
+      });
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
