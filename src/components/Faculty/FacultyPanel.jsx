@@ -399,14 +399,19 @@ export default function FacultyPanel({
           </button>
         </nav>
 
-        {/* Sidebar Footer: Settings & Profile */}
+        {/* Sidebar Footer: Settings, Logout & Profile */}
         <div className="faculty-sidebar-footer">
           <button className="faculty-nav-item" onClick={onOpenSettings}>
             <Settings size={18} />
             <span>Settings</span>
           </button>
 
-          <div className="faculty-user-card">
+          <button className="faculty-nav-item logout-btn" onClick={onLogout} title="Sign out of your account">
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
+
+          <div className="faculty-user-card" onClick={onOpenSettings} style={{ cursor: 'pointer' }} title="View Profile & Settings">
             <img
               src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
               alt={user?.name || 'Dr. Alex Johnson'}
@@ -447,7 +452,12 @@ export default function FacultyPanel({
             </div>
 
             {/* Profile Avatar */}
-            <div className="topbar-profile-circle">
+            <div
+              className="topbar-profile-circle"
+              onClick={onOpenSettings}
+              style={{ cursor: 'pointer' }}
+              title="Settings & Profile"
+            >
               <img
                 src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                 alt="Profile"

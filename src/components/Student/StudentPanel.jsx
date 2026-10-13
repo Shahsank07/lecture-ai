@@ -317,7 +317,12 @@ export default function StudentPanel({
 
         {/* User Card & Logout */}
         <div className="student-sidebar-footer">
-          <div className="student-user-card">
+          <button className="student-nav-item logout-btn" onClick={onLogout} title="Sign out of your account">
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
+
+          <div className="student-user-card" onClick={onOpenSettings} style={{ cursor: 'pointer' }} title="View Profile & Settings">
             <img
               src={user?.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'}
               alt={user?.name || 'Arjun Sharma'}
@@ -351,6 +356,11 @@ export default function StudentPanel({
                 placeholder="Search lectures, notes, resources..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    handleNavClick('lectures');
+                  }
+                }}
               />
             </div>
 
@@ -364,14 +374,23 @@ export default function StudentPanel({
               <span className="notif-badge">3</span>
             </button>
 
-            {/* Chat button */}
-            <button className="topbar-icon-btn" title="2 Messages">
+            {/* Chat button - opens AI Assistant */}
+            <button
+              className="topbar-icon-btn"
+              title="Ask AI Assistant"
+              onClick={() => handleNavClick('ai-assistant')}
+            >
               <MessageSquare size={20} />
-              <span className="notif-badge purple">2</span>
+              <span className="notif-badge purple">AI</span>
             </button>
 
             {/* Avatar */}
-            <div className="topbar-profile-circle">
+            <div
+              className="topbar-profile-circle"
+              onClick={onOpenSettings}
+              style={{ cursor: 'pointer' }}
+              title="Settings & Profile"
+            >
               <img
                 src={user?.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'}
                 alt="Profile"
@@ -550,10 +569,30 @@ export default function StudentPanel({
                     </div>
 
                     <div className="lecture-action-icons">
-                      <button className="thumb-action-btn" title="Download Notes">
+                      <button
+                        className="thumb-action-btn"
+                        title="Download Notes"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onNavigate) {
+                            if (lec.id === 'lec-1') onNavigate('notes:cls-dbms-norm');
+                            else if (lec.id === 'lec-2') onNavigate('notes:cls-dsa-trees');
+                            else if (lec.id === 'lec-3') onNavigate('notes:cls-os-sync');
+                            else if (lec.id === 'lec-4') onNavigate('notes:cls-dbms-er');
+                            else onNavigate('notes');
+                          }
+                        }}
+                      >
                         <Download size={14} />
                       </button>
-                      <button className="thumb-action-btn" title="Options">
+                      <button
+                        className="thumb-action-btn"
+                        title="View Class"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNavClick('classes');
+                        }}
+                      >
                         <MoreVertical size={14} />
                       </button>
                     </div>
