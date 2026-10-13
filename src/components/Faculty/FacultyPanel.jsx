@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, BookOpen, Radio, FolderOpen,
   Megaphone, ClipboardCheck, HelpCircle, CheckSquare,
   Settings, LogOut, Bell, Calendar, Clock, MapPin,
   Users, ChevronRight, MoreVertical, Plus, Sparkles,
   Search, ArrowRight, BookMarked, UserCheck, BarChart3,
-  Video, UploadCloud, FileText, CheckCircle2
+  Video, UploadCloud, FileText, CheckCircle2, X
 } from 'lucide-react';
+import { getAllSubjects, getAllClasses, getClassesBySubject } from '../../db';
 import UploadNotesModal from './UploadNotesModal';
 import UploadQuizModal from './UploadQuizModal';
 import MarkAttendanceModal from './MarkAttendanceModal';
@@ -27,6 +28,10 @@ export default function FacultyPanel({
   const [showAttendance, setShowAttendance] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedClassForAtt, setSelectedClassForAtt] = useState('Data Structures');
+
+  // Live Lecture picker modal
+  const [showLecturePicker, setShowLecturePicker] = useState(false);
+  const [customLectureName, setCustomLectureName] = useState('');
 
   const isDemo =
     user?.id === 'faculty-alex-johnson' ||
@@ -52,7 +57,32 @@ export default function FacultyPanel({
     }
   ] : []);
 
-  const todayClasses = isDemo ? [
+  // ─── Real data loading for non-demo users ───────────
+  const [realSubjects, setRealSubjects] = useState([]);
+  const [realClasses, setRealClasses] = useState([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!isDemo && user?.id) {
+      (async () => {
+        try {
+          const subs = await getAllSubjects(user.id);
+          const cls = await getAllClasses();
+          setRealSubjects(subs || []);
+          setRealClasses(cls || []);
+        } catch (e) {
+          console.warn('FacultyPanel data load:', e);
+        } finally {
+          setDataLoaded(true);
+        }
+      })();
+    } else {
+      setDataLoaded(true);
+    }
+  }, [user?.id, isDemo]);
+
+  // Build today's classes and upcoming lectures
+  const demoTodayClasses = [
     {
       id: 'ds-101',
       time: '10:00 AM',
@@ -77,9 +107,9 @@ export default function FacultyPanel({
       room: 'Room 204',
       students: 40
     }
-  ] : [];
+  ];
 
-  const upcomingLectures = isDemo ? [
+  const demoUpcomingLectures = [
     {
       id: 'cn-201',
       month: 'MAY',
@@ -107,22 +137,81 @@ export default function FacultyPanel({
       time: '10:00 AM - 11:00 AM',
       room: 'Room 402'
     }
-  ] : [];
+  ];
 
-  const classesCount = isDemo ? 5 : (subjects?.length || user?.classesCount || 0);
-  const lecturesCount = isDemo ? 3 : 0;
-  const studentsCount = isDemo ? 142 : (user?.studentsCount || 0);
+  // For non-demo users, build class cards from real subjects
+  const buildRealTodayClasses = () => {
+    if (realSubjects.length === 0) return [];
+    return realSubjects.map((sub, idx) => ({
+      id: sub.id,
+      time: `${9 + idx}:00 AM`,
+      name: sub.name,
+      section: user?.department || 'Department',
+      room: `Room ${201 + idx}`,
+      students: 0
+    }));
+  };
+
+  const todayClasses = isDemo ? demoTodayClasses : buildRealTodayClasses();
+  const upcomingLectures = isDemo ? demoUpcomingLectures : [];
+
+  // Stats
+  const classesCount = isDemo ? 5 : (realSubjects.length || subjects?.length || user?.classesCount || 0);
+  const lecturesCount = isDemo ? 3 : (realClasses.filter(c => {
+    if (!c.date) return false;
+    const d = new Date(c.date);
+    const today = new Date();
+    return d.toDateString() === today.toDateString();
+  }).length);
+  const studentsCount = isDemo ? 142 : (user?.studentsCount || realClasses.reduce((acc, c) => acc + (c.attendees?.length || 0), 0));
   const pendingTasksCount = isDemo ? 7 : 0;
 
+  // Current date display
+  const currentDate = new Date();
+  const dateStr = currentDate.toLocaleDateString('en-US', {
+    day: '2-digit', month: 'long', year: 'numeric', weekday: 'long'
+  });
+
+  // ─── Handle Start Class Lecture (works for ALL users) ───
   const handleStartClassLecture = (cls) => {
+    if (!cls || !cls.name) {
+      // No class provided — show the lecture picker modal
+      setShowLecturePicker(true);
+      return;
+    }
     if (onStartLecture) {
       onStartLecture({
         id: cls.id,
         name: cls.name,
-        section: cls.section,
-        room: cls.room
+        section: cls.section || user?.department || '',
+        room: cls.room || ''
       });
     }
+  };
+
+  // Start lecture from the picker modal
+  const handleStartFromPicker = (option) => {
+    setShowLecturePicker(false);
+    if (onStartLecture) {
+      onStartLecture({
+        id: option.id || 'new-' + Date.now(),
+        name: option.name,
+        section: option.section || user?.department || '',
+        room: option.room || ''
+      });
+    }
+  };
+
+  const handleStartCustomLecture = (e) => {
+    e.preventDefault();
+    if (!customLectureName.trim()) return;
+    handleStartFromPicker({
+      id: 'custom-' + Date.now(),
+      name: customLectureName.trim(),
+      section: user?.department || '',
+      room: ''
+    });
+    setCustomLectureName('');
   };
 
   const handlePostAnnouncement = (e) => {
@@ -143,7 +232,12 @@ export default function FacultyPanel({
   const handleQuickAction = (actionId) => {
     switch (actionId) {
       case 'live-lecture':
-        handleStartClassLecture(todayClasses[0]);
+        // If there are classes, start the first one; otherwise show picker
+        if (todayClasses.length > 0) {
+          handleStartClassLecture(todayClasses[0]);
+        } else {
+          setShowLecturePicker(true);
+        }
         break;
       case 'upload-notes':
       case 'resources':
@@ -171,6 +265,25 @@ export default function FacultyPanel({
         break;
     }
   };
+
+  // Build available subjects/classes list for the picker
+  const pickerOptions = (() => {
+    if (isDemo) {
+      return demoTodayClasses;
+    }
+    // Non-demo: use real subjects, fallback to passed-in subjects prop
+    const allSubs = realSubjects.length > 0 ? realSubjects : (subjects || []);
+    if (allSubs.length > 0) {
+      return allSubs.map((sub, idx) => ({
+        id: sub.id,
+        name: sub.name,
+        section: user?.department || '',
+        room: `Room ${201 + idx}`,
+        students: 0
+      }));
+    }
+    return [];
+  })();
 
   return (
     <div className="faculty-portal-layout">
@@ -217,7 +330,13 @@ export default function FacultyPanel({
 
           <button
             className="faculty-nav-item highlight-live"
-            onClick={() => handleStartClassLecture(todayClasses[0])}
+            onClick={() => {
+              if (todayClasses.length > 0) {
+                handleStartClassLecture(todayClasses[0]);
+              } else {
+                setShowLecturePicker(true);
+              }
+            }}
             title="Record Live Class & Generate AI Summary"
           >
             <Radio size={18} className="live-pulse-dot" />
@@ -310,7 +429,7 @@ export default function FacultyPanel({
             {/* Date Display */}
             <div className="topbar-date-pill">
               <Calendar size={18} />
-              <span>20 May 2025 Tuesday</span>
+              <span>{dateStr}</span>
             </div>
 
             {/* Profile Avatar */}
@@ -387,9 +506,28 @@ export default function FacultyPanel({
                   <div style={{ padding: '40px 16px', textAlign: 'center', color: '#94A3B8' }}>
                     <Calendar size={36} style={{ margin: '0 auto 12px', opacity: 0.35, color: '#A855F7' }} />
                     <h4 style={{ color: '#F1F5F9', fontSize: '15px', marginBottom: '6px' }}>No Classes Scheduled Today</h4>
-                    <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '300px', margin: '0 auto' }}>
+                    <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '300px', margin: '0 auto 16px' }}>
                       You have no classes scheduled for today. Start a live lecture anytime to record and generate AI summaries.
                     </p>
+                    <button
+                      onClick={() => setShowLecturePicker(true)}
+                      style={{
+                        background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                        border: 'none',
+                        color: '#fff',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Radio size={16} />
+                      <span>Start Live Lecture Now</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="classes-timeline-list">
@@ -574,45 +712,81 @@ export default function FacultyPanel({
             </div>
 
             <div className="classes-cards-grid">
-              {[...todayClasses, ...upcomingLectures.map(u => ({ id: u.id, name: u.name, section: u.section, room: u.room, students: 36, time: u.time }))].map(cls => (
-                <div key={cls.id} className="faculty-class-card">
-                  <div className="f-class-header">
-                    <h3>{cls.name}</h3>
-                    <span className="f-class-badge">{cls.section}</span>
+              {(() => {
+                const allClassCards = [
+                  ...todayClasses,
+                  ...upcomingLectures.map(u => ({ id: u.id, name: u.name, section: u.section, room: u.room, students: 36, time: u.time }))
+                ];
+                if (allClassCards.length === 0) {
+                  return (
+                    <div style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center' }}>
+                      <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#A855F7' }} />
+                      <h3 style={{ color: '#F1F5F9', fontSize: '18px', marginBottom: '8px' }}>No Classes Yet</h3>
+                      <p style={{ color: '#64748B', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px' }}>
+                        Create your first class or start a live lecture to begin recording and generating AI summaries.
+                      </p>
+                      <button
+                        onClick={() => setShowLecturePicker(true)}
+                        style={{
+                          background: 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                          border: 'none',
+                          color: '#fff',
+                          padding: '12px 24px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <Radio size={18} />
+                        <span>Start Live Lecture</span>
+                      </button>
+                    </div>
+                  );
+                }
+                return allClassCards.map(cls => (
+                  <div key={cls.id} className="faculty-class-card">
+                    <div className="f-class-header">
+                      <h3>{cls.name}</h3>
+                      <span className="f-class-badge">{cls.section}</span>
+                    </div>
+                    <div className="f-class-meta">
+                      <div><Clock size={14} /> <span>{cls.time || '10:00 AM'}</span></div>
+                      <div><MapPin size={14} /> <span>{cls.room}</span></div>
+                      <div><Users size={14} /> <span>{cls.students || 0} Students</span></div>
+                    </div>
+                    <div className="f-class-actions">
+                      <button
+                        className="f-btn start-btn"
+                        onClick={() => handleStartClassLecture(cls)}
+                      >
+                        <Radio size={14} />
+                        <span>Start Lecture & AI Notes</span>
+                      </button>
+                      <button
+                        className="f-btn notes-btn"
+                        onClick={() => setShowUploadNotes(true)}
+                      >
+                        <UploadCloud size={14} />
+                        <span>Upload Notes</span>
+                      </button>
+                      <button
+                        className="f-btn att-btn"
+                        onClick={() => {
+                          setSelectedClassForAtt(cls.name);
+                          setShowAttendance(true);
+                        }}
+                      >
+                        <CheckSquare size={14} />
+                        <span>Attendance</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="f-class-meta">
-                    <div><Clock size={14} /> <span>{cls.time || '10:00 AM'}</span></div>
-                    <div><MapPin size={14} /> <span>{cls.room}</span></div>
-                    <div><Users size={14} /> <span>{cls.students || 40} Students</span></div>
-                  </div>
-                  <div className="f-class-actions">
-                    <button
-                      className="f-btn start-btn"
-                      onClick={() => handleStartClassLecture(cls)}
-                    >
-                      <Radio size={14} />
-                      <span>Start Lecture & AI Notes</span>
-                    </button>
-                    <button
-                      className="f-btn notes-btn"
-                      onClick={() => setShowUploadNotes(true)}
-                    >
-                      <UploadCloud size={14} />
-                      <span>Upload Notes</span>
-                    </button>
-                    <button
-                      className="f-btn att-btn"
-                      onClick={() => {
-                        setSelectedClassForAtt(cls.name);
-                        setShowAttendance(true);
-                      }}
-                    >
-                      <CheckSquare size={14} />
-                      <span>Attendance</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           </div>
         )}
@@ -662,18 +836,25 @@ export default function FacultyPanel({
               <div className="faculty-content-card">
                 <h3>Recent Announcements</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-                  {announcementsList.map(ann => (
-                    <div key={ann.id} style={{ background: '#13192B', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <strong style={{ color: '#FFFFFF', fontSize: '14px' }}>{ann.title}</strong>
-                        <span style={{ fontSize: '11px', color: '#818CF8' }}>{ann.time}</span>
-                      </div>
-                      <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 8px 0', lineHeight: '1.4' }}>{ann.text}</p>
-                      <span style={{ fontSize: '10px', background: 'rgba(99,102,241,0.15)', color: '#A5B4FC', padding: '2px 8px', borderRadius: '4px' }}>
-                        {ann.classGroup}
-                      </span>
+                  {announcementsList.length === 0 ? (
+                    <div style={{ padding: '30px 16px', textAlign: 'center', color: '#64748B' }}>
+                      <Megaphone size={32} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
+                      <p style={{ fontSize: '13px' }}>No announcements yet. Create your first announcement above.</p>
                     </div>
-                  ))}
+                  ) : (
+                    announcementsList.map(ann => (
+                      <div key={ann.id} style={{ background: '#13192B', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <strong style={{ color: '#FFFFFF', fontSize: '14px' }}>{ann.title}</strong>
+                          <span style={{ fontSize: '11px', color: '#818CF8' }}>{ann.time}</span>
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: '0 0 8px 0', lineHeight: '1.4' }}>{ann.text}</p>
+                        <span style={{ fontSize: '10px', background: 'rgba(99,102,241,0.15)', color: '#A5B4FC', padding: '2px 8px', borderRadius: '4px' }}>
+                          {ann.classGroup}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -735,6 +916,140 @@ export default function FacultyPanel({
           </div>
         )}
       </main>
+
+      {/* ================= LIVE LECTURE PICKER MODAL ================= */}
+      {showLecturePicker && (
+        <div
+          className="attendees-modal-overlay"
+          onClick={() => setShowLecturePicker(false)}
+          style={{ zIndex: 10000 }}
+        >
+          <div
+            className="attendees-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '520px', width: '90%' }}
+          >
+            <div className="attendees-modal-header">
+              <div className="attendees-header-info">
+                <Radio size={20} className="attendees-header-icon" style={{ color: '#A855F7' }} />
+                <div>
+                  <h3>Start Live Lecture</h3>
+                  <p>Select a subject or enter a custom lecture name</p>
+                </div>
+              </div>
+              <button className="attendees-close-btn" onClick={() => setShowLecturePicker(false)}>✕</button>
+            </div>
+
+            <div className="attendees-modal-body" style={{ padding: '16px 20px' }}>
+              {/* Subject Quick-Select Buttons */}
+              {pickerOptions.length > 0 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Your Subjects
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {pickerOptions.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => handleStartFromPicker(opt)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          padding: '14px 16px',
+                          background: '#13192B',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          color: '#F1F5F9',
+                          fontSize: '14px',
+                          fontWeight: 500,
+                          textAlign: 'left',
+                          width: '100%',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = '#1A2240';
+                          e.currentTarget.style.borderColor = 'rgba(168,85,247,0.3)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = '#13192B';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                        }}
+                      >
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, #7C3AED20, #A855F720)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Radio size={18} style={{ color: '#A855F7' }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600 }}>{opt.name}</div>
+                          {opt.section && <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>{opt.section}</div>}
+                        </div>
+                        <ArrowRight size={16} style={{ color: '#64748B' }} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom lecture name input */}
+              <div style={{ borderTop: pickerOptions.length > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none', paddingTop: pickerOptions.length > 0 ? '16px' : '0' }}>
+                <p style={{ color: '#94A3B8', fontSize: '12px', marginBottom: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Or Start a New Subject Lecture
+                </p>
+                <form onSubmit={handleStartCustomLecture} style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. Machine Learning, Physics Lab..."
+                    value={customLectureName}
+                    onChange={e => setCustomLectureName(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 14px',
+                      background: '#0D1117',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '10px',
+                      color: '#F1F5F9',
+                      fontSize: '14px',
+                      outline: 'none'
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={!customLectureName.trim()}
+                    style={{
+                      background: customLectureName.trim() ? 'linear-gradient(135deg, #7C3AED, #A855F7)' : '#1E293B',
+                      border: 'none',
+                      color: customLectureName.trim() ? '#fff' : '#64748B',
+                      padding: '12px 20px',
+                      borderRadius: '10px',
+                      cursor: customLectureName.trim() ? 'pointer' : 'not-allowed',
+                      fontWeight: 600,
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <Radio size={15} />
+                    <span>Start</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ================= MODALS ================= */}
       <UploadNotesModal
