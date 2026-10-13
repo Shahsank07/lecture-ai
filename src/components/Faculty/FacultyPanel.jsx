@@ -811,7 +811,7 @@ export default function FacultyPanel({
                       <button
                         className="f-btn att-btn"
                         onClick={() => {
-                          setSelectedClassForAtt(cls.name);
+                          setSelectedClassForAtt(cls.name || 'Data Structures');
                           setShowAttendance(true);
                         }}
                       >

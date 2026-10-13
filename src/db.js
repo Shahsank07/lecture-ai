@@ -489,6 +489,47 @@ export async function saveAttendanceRecord(record) {
   return record;
 }
 
+// ─── Class Student Enrollment Roster ─────────────────
+export function getClassRosterKey(department, semester, section) {
+  const dept = (department || 'CSE').trim().toUpperCase();
+  const sem = (semester || '3rd Sem').trim();
+  const sec = (section || 'A').trim().toUpperCase();
+  return `${dept}_${sem}_${sec}`;
+}
+
+export async function getClassRoster(classKey) {
+  const rosters = getLocal('class_rosters', {});
+  return rosters[classKey] || [];
+}
+
+export async function enrollStudentsInClass(classKey, newStudents = []) {
+  const rosters = getLocal('class_rosters', {});
+  const existing = rosters[classKey] || [];
+  
+  // Merge by id (roll number or email), avoiding duplicates
+  const map = new Map();
+  existing.forEach(s => map.set(s.id.toUpperCase(), s));
+  newStudents.forEach(s => {
+    if (s && s.id && s.name) {
+      map.set(s.id.toUpperCase(), { ...s, id: s.id.toUpperCase(), enrolledAt: new Date().toISOString() });
+    }
+  });
+
+  const updated = Array.from(map.values());
+  rosters[classKey] = updated;
+  setLocal('class_rosters', rosters);
+  return updated;
+}
+
+export async function removeStudentFromClass(classKey, studentId) {
+  const rosters = getLocal('class_rosters', {});
+  const existing = rosters[classKey] || [];
+  const updated = existing.filter(s => s.id.toUpperCase() !== studentId.toUpperCase());
+  rosters[classKey] = updated;
+  setLocal('class_rosters', rosters);
+  return updated;
+}
+
 // ─── Seed Default Data (Instant execution) ───────────
 export async function seedDefaultSubjectsAndClasses(userId) {
   const existing = getLocal('subjects').filter(s => !userId || s.userId === userId || s.user_id === userId);
