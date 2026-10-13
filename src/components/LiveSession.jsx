@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ArrowLeft, Mic, MicOff, Pause, Play,
-  FileText, Radio, CheckCircle, Loader2, Trash2, Cuboid,
-  BrainCircuit, BookOpen, File, Link2, Sparkles, Bell, Zap,
-  Users, Copy, Check
+  FileText, Radio, CheckCircle, Loader2, Trash2,
+  BookOpen, File, Link2, Sparkles, Bell, Zap,
+  Users, Copy, Check, Image, GitBranch, Hash,
+  ExternalLink, ChevronRight
 } from 'lucide-react';
 import SpeechEngine from '../speechEngine';
 import { saveClass, deleteClass, getClass } from '../db';
 import { createNotePoint } from '../utils/textProcessor';
-import { summarizeNotes, extract3DSubject, factCheckTranscript } from '../services/aiService';
+import { summarizeNotes, factCheckTranscript } from '../services/aiService';
 import { generateId, formatDuration } from '../utils/helpers';
 import Waveform from './Waveform';
-import SubjectStudio from './SubjectStudio';
 import { Button } from './ui';
 import { Badge } from './ui';
 import { Card } from './ui';
@@ -19,6 +19,7 @@ import { Avatar } from './ui';
 import { Progress } from './ui';
 import './LiveSession.css';
 
+// ─── Topic Detection Keywords ──────────────────────────────
 const TOPIC_KEYWORDS = {
   'Convolutional Neural Networks': ['convolution', 'filter', 'kernel', 'feature map', 'pooling', 'stride', 'padding', 'cnn', 'convnet'],
   'Pooling Layers': ['pooling', 'max pooling', 'average pooling', 'global pooling', 'downsampling'],
@@ -27,8 +28,198 @@ const TOPIC_KEYWORDS = {
   'Random Forest': ['random forest', 'ensemble', 'bagging', 'bootstrap', 'voting'],
   'Transformers': ['attention', 'self-attention', 'transformer', 'bert', 'gpt', 'encoder', 'decoder'],
   'RNN': ['recurrent', 'rnn', 'lstm', 'gru', 'sequence', 'hidden state'],
+  'Data Structures': ['array', 'linked list', 'stack', 'queue', 'tree', 'graph', 'hash table', 'heap'],
+  'Sorting Algorithms': ['bubble sort', 'merge sort', 'quick sort', 'insertion sort', 'selection sort', 'heap sort'],
+  'Operating Systems': ['process', 'thread', 'scheduling', 'deadlock', 'memory management', 'virtual memory', 'paging'],
+  'Database Systems': ['sql', 'normalization', 'transaction', 'acid', 'indexing', 'join', 'schema', 'relational'],
+  'Computer Networks': ['tcp', 'udp', 'ip', 'http', 'dns', 'routing', 'osi model', 'subnet', 'protocol'],
+  'Object Oriented Programming': ['class', 'object', 'inheritance', 'polymorphism', 'encapsulation', 'abstraction'],
 };
 
+// ─── Topic-related visual data ─────────────────────────────
+const TOPIC_VISUALS = {
+  'Convolutional Neural Networks': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/6/63/Typical_cnn.png',
+    caption: 'Typical CNN Architecture — Input → Convolution → Pooling → Fully Connected → Output',
+    flowchart: [
+      { label: 'Input Image', color: '#3B82F6' },
+      { label: 'Conv Layer + ReLU', color: '#8B5CF6' },
+      { label: 'Pooling Layer', color: '#EC4899' },
+      { label: 'Conv Layer + ReLU', color: '#8B5CF6' },
+      { label: 'Flatten', color: '#F59E0B' },
+      { label: 'Fully Connected', color: '#10B981' },
+      { label: 'Output / Softmax', color: '#EF4444' },
+    ],
+  },
+  'Backpropagation': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Backpropagation.svg/400px-Backpropagation.svg.png',
+    caption: 'Backpropagation — Computing gradients using the chain rule from output to input layers',
+    flowchart: [
+      { label: 'Forward Pass', color: '#3B82F6' },
+      { label: 'Compute Loss', color: '#EF4444' },
+      { label: 'Backward Pass', color: '#F59E0B' },
+      { label: 'Compute Gradients', color: '#8B5CF6' },
+      { label: 'Update Weights', color: '#10B981' },
+    ],
+  },
+  'Decision Trees': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/e/eb/Decision_Tree.jpg',
+    caption: 'Decision Tree — Recursive splitting using entropy / information gain criteria',
+    flowchart: [
+      { label: 'Root Node (Full Data)', color: '#3B82F6' },
+      { label: 'Split on Best Feature', color: '#8B5CF6' },
+      { label: 'Left Subtree', color: '#10B981' },
+      { label: 'Right Subtree', color: '#F59E0B' },
+      { label: 'Leaf Nodes (Predictions)', color: '#EF4444' },
+    ],
+  },
+  'Random Forest': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/7/76/Random_forest_diagram_complete.png',
+    caption: 'Random Forest — Ensemble of decision trees with bootstrap aggregation (bagging)',
+    flowchart: [
+      { label: 'Training Data', color: '#3B82F6' },
+      { label: 'Bootstrap Samples', color: '#8B5CF6' },
+      { label: 'Tree 1', color: '#10B981' },
+      { label: 'Tree 2', color: '#10B981' },
+      { label: 'Tree N', color: '#10B981' },
+      { label: 'Majority Vote / Average', color: '#EF4444' },
+    ],
+  },
+  'Transformers': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/8/8f/The-Transformer-model-architecture.png',
+    caption: 'Transformer Architecture — Multi-head attention with positional encoding',
+    flowchart: [
+      { label: 'Input Embedding', color: '#3B82F6' },
+      { label: 'Positional Encoding', color: '#8B5CF6' },
+      { label: 'Multi-Head Attention', color: '#EC4899' },
+      { label: 'Feed Forward Network', color: '#F59E0B' },
+      { label: 'Layer Normalization', color: '#10B981' },
+      { label: 'Output Probabilities', color: '#EF4444' },
+    ],
+  },
+  'Data Structures': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/R-tree_with_guttman%27s_quadratic_split.png/400px-R-tree_with_guttman%27s_quadratic_split.png',
+    caption: 'Data Structures — Arrays, Trees, Graphs, Hash Tables and their operations',
+    flowchart: [
+      { label: 'Linear: Array / List', color: '#3B82F6' },
+      { label: 'Stack (LIFO)', color: '#8B5CF6' },
+      { label: 'Queue (FIFO)', color: '#EC4899' },
+      { label: 'Tree (BST / AVL)', color: '#F59E0B' },
+      { label: 'Graph (BFS / DFS)', color: '#10B981' },
+      { label: 'Hash Table (O(1))', color: '#EF4444' },
+    ],
+  },
+  'Sorting Algorithms': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Merge-sort-example-300px.gif',
+    caption: 'Sorting — Comparing time complexities of common sorting algorithms',
+    flowchart: [
+      { label: 'Bubble Sort O(n²)', color: '#EF4444' },
+      { label: 'Insertion Sort O(n²)', color: '#F59E0B' },
+      { label: 'Merge Sort O(n log n)', color: '#10B981' },
+      { label: 'Quick Sort O(n log n)', color: '#3B82F6' },
+      { label: 'Heap Sort O(n log n)', color: '#8B5CF6' },
+    ],
+  },
+  'Operating Systems': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Kernel_Layout.svg/380px-Kernel_Layout.svg.png',
+    caption: 'OS Kernel — Process management, memory management, file systems, I/O',
+    flowchart: [
+      { label: 'Process Management', color: '#3B82F6' },
+      { label: 'CPU Scheduling', color: '#8B5CF6' },
+      { label: 'Memory Management', color: '#EC4899' },
+      { label: 'File System', color: '#F59E0B' },
+      { label: 'I/O Management', color: '#10B981' },
+    ],
+  },
+  'Database Systems': {
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Er_Diagram_MMORPG.png/440px-Er_Diagram_MMORPG.png',
+    caption: 'DBMS — ER Diagrams, Normalization, SQL Queries, ACID Properties',
+    flowchart: [
+      { label: 'ER Modeling', color: '#3B82F6' },
+      { label: 'Normalization (1NF-3NF)', color: '#8B5CF6' },
+      { label: 'SQL Queries', color: '#EC4899' },
+      { label: 'Transactions (ACID)', color: '#F59E0B' },
+      { label: 'Indexing & Optimization', color: '#10B981' },
+    ],
+  },
+};
+
+const DEFAULT_VISUAL = {
+  image: null,
+  caption: 'Speak about a topic to see related visuals and flowcharts here.',
+  flowchart: [
+    { label: 'Start Lecture', color: '#3B82F6' },
+    { label: 'AI Detects Topic', color: '#8B5CF6' },
+    { label: 'Visual Loads', color: '#10B981' },
+  ],
+};
+
+// ─── Pre-built Smart Resources ─────────────────────────────
+const SMART_RESOURCES = {
+  'Convolutional Neural Networks': [
+    { type: 'book', title: 'Deep Learning — Ch. 9: CNNs', source: 'Goodfellow, Bengio & Courville', url: 'https://www.deeplearningbook.org/contents/convnets.html' },
+    { type: 'pdf', title: 'CS231n: Convolutional Neural Networks', source: 'Stanford University', url: 'https://cs231n.github.io/convolutional-networks/' },
+    { type: 'doc', title: 'PyTorch Conv2d Documentation', source: 'PyTorch Official', url: 'https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html' },
+  ],
+  'Backpropagation': [
+    { type: 'book', title: 'Neural Networks and Deep Learning — Ch. 2', source: 'Michael Nielsen', url: 'http://neuralnetworksanddeeplearning.com/chap2.html' },
+    { type: 'pdf', title: 'Backpropagation Algorithm Walkthrough', source: '3Blue1Brown', url: 'https://www.youtube.com/watch?v=Ilg3gGewQ5U' },
+    { type: 'doc', title: 'Autograd Mechanics', source: 'PyTorch Docs', url: 'https://pytorch.org/docs/stable/notes/autograd.html' },
+  ],
+  'Decision Trees': [
+    { type: 'book', title: 'ISL — Ch. 8: Tree-Based Methods', source: 'James, Witten, Hastie & Tibshirani', url: 'https://www.statlearning.com/' },
+    { type: 'pdf', title: 'Decision Trees Explained', source: 'GeeksforGeeks', url: 'https://www.geeksforgeeks.org/decision-tree/' },
+    { type: 'doc', title: 'sklearn DecisionTreeClassifier', source: 'Scikit-learn', url: 'https://scikit-learn.org/stable/modules/tree.html' },
+  ],
+  'Random Forest': [
+    { type: 'book', title: 'ISL — Ch. 8: Ensemble Methods', source: 'James et al.', url: 'https://www.statlearning.com/' },
+    { type: 'pdf', title: 'Random Forest Explained', source: 'Berkeley ML', url: 'https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf' },
+    { type: 'doc', title: 'sklearn RandomForestClassifier', source: 'Scikit-learn', url: 'https://scikit-learn.org/stable/modules/ensemble.html#random-forests' },
+  ],
+  'Transformers': [
+    { type: 'book', title: 'Attention Is All You Need', source: 'Vaswani et al. (2017)', url: 'https://arxiv.org/abs/1706.03762' },
+    { type: 'pdf', title: 'The Illustrated Transformer', source: 'Jay Alammar', url: 'https://jalammar.github.io/illustrated-transformer/' },
+    { type: 'doc', title: 'Hugging Face Transformers Docs', source: 'Hugging Face', url: 'https://huggingface.co/docs/transformers/' },
+  ],
+  'RNN': [
+    { type: 'book', title: 'Deep Learning — Ch. 10: Sequence Modeling', source: 'Goodfellow et al.', url: 'https://www.deeplearningbook.org/contents/rnn.html' },
+    { type: 'pdf', title: 'Understanding LSTM Networks', source: 'Christopher Olah', url: 'https://colah.github.io/posts/2015-08-Understanding-LSTMs/' },
+    { type: 'doc', title: 'PyTorch RNN / LSTM Docs', source: 'PyTorch Official', url: 'https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html' },
+  ],
+  'Data Structures': [
+    { type: 'book', title: 'Introduction to Algorithms (CLRS)', source: 'Cormen, Leiserson, Rivest & Stein', url: 'https://mitpress.mit.edu/9780262046305/introduction-to-algorithms/' },
+    { type: 'pdf', title: 'Visualizing Data Structures', source: 'VisuAlgo', url: 'https://visualgo.net/en' },
+    { type: 'doc', title: 'GeeksforGeeks DSA Tutorial', source: 'GeeksforGeeks', url: 'https://www.geeksforgeeks.org/data-structures/' },
+  ],
+  'Sorting Algorithms': [
+    { type: 'book', title: 'CLRS — Ch. 2, 6, 7, 8: Sorting', source: 'Cormen et al.', url: 'https://mitpress.mit.edu/9780262046305/' },
+    { type: 'pdf', title: 'Sorting Algorithm Animations', source: 'Toptal', url: 'https://www.toptal.com/developers/sorting-algorithms' },
+    { type: 'doc', title: 'Big-O Cheat Sheet', source: 'bigocheatsheet.com', url: 'https://www.bigocheatsheet.com/' },
+  ],
+  'Operating Systems': [
+    { type: 'book', title: 'Operating System Concepts (Dinosaur Book)', source: 'Silberschatz, Galvin & Gagne', url: 'https://www.os-book.com/' },
+    { type: 'pdf', title: 'OSTEP: Three Easy Pieces', source: 'Remzi Arpaci-Dusseau', url: 'https://pages.cs.wisc.edu/~remzi/OSTEP/' },
+    { type: 'doc', title: 'Linux Kernel Documentation', source: 'kernel.org', url: 'https://www.kernel.org/doc/html/latest/' },
+  ],
+  'Database Systems': [
+    { type: 'book', title: 'Database System Concepts', source: 'Silberschatz, Korth & Sudarshan', url: 'https://db-book.com/' },
+    { type: 'pdf', title: 'SQL Tutorial', source: 'W3Schools', url: 'https://www.w3schools.com/sql/' },
+    { type: 'doc', title: 'PostgreSQL Documentation', source: 'PostgreSQL', url: 'https://www.postgresql.org/docs/' },
+  ],
+  'Computer Networks': [
+    { type: 'book', title: 'Computer Networking: Top-Down Approach', source: 'Kurose & Ross', url: 'https://gaia.cs.umass.edu/kurose_ross/index.php' },
+    { type: 'pdf', title: 'Beej\'s Guide to Network Programming', source: 'Brian Hall', url: 'https://beej.us/guide/bgnet/' },
+    { type: 'doc', title: 'RFC Editor — Internet Standards', source: 'IETF', url: 'https://www.rfc-editor.org/' },
+  ],
+};
+
+const DEFAULT_RESOURCES = [
+  { type: 'book', title: 'MIT OpenCourseWare', source: 'MIT', url: 'https://ocw.mit.edu/' },
+  { type: 'pdf', title: 'Khan Academy', source: 'Khan Academy', url: 'https://www.khanacademy.org/' },
+  { type: 'doc', title: 'Wikipedia', source: 'Wikimedia', url: 'https://en.wikipedia.org/' },
+];
+
+// ─── Component ─────────────────────────────────────────────
 function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   const [status, setStatus] = useState(classData?.status || 'recording');
   const [transcript, setTranscript] = useState(classData?.transcript || '');
@@ -94,13 +285,9 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   }, [duration]);
 
   const [corrections, setCorrections] = useState([]);
-  const [active3DModel, setActive3DModel] = useState(null);
 
-  // AI Understanding State
+  // Topic detection state
   const [currentTopic, setCurrentTopic] = useState('Introduction');
-  const [currentSubtopic, setCurrentSubtopic] = useState('Course Overview');
-  const [relatedConcepts, setRelatedConcepts] = useState([]);
-  const [smartResources, setSmartResources] = useState([]);
   const [topicHistory, setTopicHistory] = useState([]);
   const [showTopicChange, setShowTopicChange] = useState(false);
   const [lastTopicChange, setLastTopicChange] = useState(null);
@@ -109,7 +296,6 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   const detectTopics = useCallback((text) => {
     const recentText = text.slice(-2000).toLowerCase();
     let detectedTopic = 'General Discussion';
-    let detectedSubtopic = 'Current Topic';
 
     for (const [topic, keywords] of Object.entries(TOPIC_KEYWORDS)) {
       const matches = keywords.filter(k => recentText.includes(k.toLowerCase())).length;
@@ -119,122 +305,29 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       }
     }
 
-    // Subtopic detection
-    if (detectedTopic === 'Convolutional Neural Networks') {
-      if (recentText.includes('pooling')) detectedSubtopic = 'Pooling Layers';
-      else if (recentText.includes('convolution') || recentText.includes('filter') || recentText.includes('kernel')) detectedSubtopic = 'Convolution Operations';
-      else if (recentText.includes('feature map') || recentText.includes('activation')) detectedSubtopic = 'Feature Maps & Activations';
-    } else if (detectedTopic === 'Decision Trees') {
-      if (recentText.includes('entropy') || recentText.includes('information gain')) detectedSubtopic = 'Splitting Criteria';
-      else if (recentText.includes('prune') || recentText.includes('overfit')) detectedSubtopic = 'Pruning & Overfitting';
-    }
-
-    if (detectedTopic !== currentTopic || detectedSubtopic !== currentSubtopic) {
+    if (detectedTopic !== currentTopic) {
       const prevTopic = currentTopic;
       setCurrentTopic(detectedTopic);
-      setCurrentSubtopic(detectedSubtopic);
-      setTopicHistory(prev => [...prev.slice(-4), { topic: detectedTopic, subtopic: detectedSubtopic, time: duration }]);
+      setTopicHistory(prev => [...prev.slice(-6), { topic: detectedTopic, time: duration }]);
       setLastTopicChange({ from: prevTopic, to: detectedTopic, time: duration });
       setShowTopicChange(true);
       setTimeout(() => setShowTopicChange(false), 4000);
-
-      // Update related concepts
-      const concepts = getRelatedConcepts(detectedTopic, detectedSubtopic);
-      setRelatedConcepts(concepts);
-
-      // Update smart resources
-      const resources = getSmartResources(detectedTopic, detectedSubtopic);
-      setSmartResources(resources);
     }
-  }, [currentTopic, currentSubtopic, duration]);
+  }, [currentTopic, duration]);
 
   useEffect(() => {
     if (!transcript || transcript.length < 50 || status === 'completed') return;
-
     const timeout = setTimeout(() => {
       detectTopics(transcript);
     }, 3000);
-
     return () => clearTimeout(timeout);
   }, [transcript, status, detectTopics]);
 
-  const getRelatedConcepts = (topic, subtopic) => {
-    const conceptMap = {
-      'Convolutional Neural Networks': {
-        'Pooling Layers': ['Convolution Layer', 'Feature Maps', 'Filters/Kernels', 'Stride & Padding', 'ReLU Activation'],
-        'Convolution Operations': ['Kernel/Filter', 'Stride', 'Padding', 'Feature Maps', 'Receptive Field'],
-        'Feature Maps & Activations': ['Convolution Layer', 'ReLU', 'Batch Normalization', 'Pooling Layers', 'Depth'],
-      },
-      'Decision Trees': {
-        'Splitting Criteria': ['Entropy', 'Information Gain', 'Gini Impurity', 'Chi-Square'],
-        'Pruning & Overfitting': ['Pre-pruning', 'Post-pruning', 'Cost Complexity', 'Cross-validation'],
-      },
-      'Random Forest': {
-        'default': ['Bagging', 'Feature Randomness', 'Out-of-Bag Error', 'Feature Importance', 'Bootstrap Sampling'],
-      },
-      'Transformers': {
-        'default': ['Self-Attention', 'Multi-Head Attention', 'Positional Encoding', 'Feed-Forward Network', 'Layer Normalization'],
-      },
-    };
-
-    return conceptMap[topic]?.[subtopic] || conceptMap[topic]?.default || ['Core Concepts', 'Key Definitions', 'Examples', 'Applications'];
-  };
-
-  const getSmartResources = (topic, subtopic) => {
-    // Mock resources - in production would come from backend
-    const resourceMap = {
-      'Convolutional Neural Networks': {
-        'Pooling Layers': [
-          { type: 'book', title: 'Deep Learning - Ch. 9: CNNs', source: 'Goodfellow et al.', reason: 'Covers pooling theory and variants', action: 'Read' },
-          { type: 'pdf', title: 'CS231n: Pooling Layer Notes', source: 'Stanford', reason: 'Lecture notes with visualizations', action: 'View PDF' },
-          { type: 'doc', title: 'TensorFlow Pooling API', source: 'Official Docs', reason: 'Implementation reference', action: 'Open' },
-        ],
-        'Convolution Operations': [
-          { type: 'book', title: 'Deep Learning - Ch. 9: Convolution', source: 'Goodfellow et al.', reason: 'Mathematical foundations', action: 'Read' },
-          { type: 'pdf', title: 'A Guide to Convolution Arithmetic', source: 'Dumoulin & Visin', reason: 'Comprehensive visual guide', action: 'View PDF' },
-          { type: 'doc', title: 'PyTorch Conv2d Docs', source: 'Official', reason: 'PyTorch implementation', action: 'Open' },
-        ],
-        'default': [
-          { type: 'book', title: 'Deep Learning - Chapter 9', source: 'Goodfellow et al.', reason: 'Comprehensive CNN chapter', action: 'Read' },
-          { type: 'pdf', title: 'CS231n Lecture Notes', source: 'Stanford', reason: 'Industry-standard course material', action: 'View PDF' },
-          { type: 'doc', title: 'CNN Architectures Overview', source: 'Papers With Code', reason: 'Modern architecture survey', action: 'Open' },
-        ],
-      },
-      'Decision Trees': {
-        'default': [
-          { type: 'book', title: 'ISL - Ch. 8: Tree Methods', source: 'James et al.', reason: 'Statistical learning perspective', action: 'Read' },
-          { type: 'pdf', title: 'Decision Tree Algorithm', source: 'ML Course Notes', reason: 'Step-by-step algorithm', action: 'View PDF' },
-          { type: 'doc', title: 'sklearn DecisionTreeClassifier', source: 'Scikit-learn', reason: 'Python implementation', action: 'Open' },
-        ],
-      },
-      'Random Forest': {
-        'default': [
-          { type: 'book', title: 'ISL - Ch. 8: Ensemble Methods', source: 'James et al.', reason: 'Bagging and random forests', action: 'Read' },
-          { type: 'pdf', title: 'Random Forest Explained', source: 'Berkeley ML', reason: 'Intuitive explanation', action: 'View PDF' },
-        ],
-      },
-      'Transformers': {
-        'default': [
-          { type: 'book', title: 'Attention Is All You Need', source: 'Vaswani et al.', reason: 'Original transformer paper', action: 'Read' },
-          { type: 'pdf', title: 'The Illustrated Transformer', source: 'Jay Alammar', reason: 'Visual explanation', action: 'View PDF' },
-          { type: 'doc', title: 'Hugging Face Transformers', source: 'Official', reason: 'Library documentation', action: 'Open' },
-        ],
-      },
-    };
-
-    return resourceMap[topic]?.[subtopic] || resourceMap[topic]?.default || [
-      { type: 'book', title: 'Relevant Textbook Chapter', source: 'Academic Source', reason: 'Core theory coverage', action: 'Read' },
-      { type: 'pdf', title: 'Lecture Notes', source: 'University Course', reason: 'Structured explanation', action: 'View PDF' },
-      { type: 'doc', title: 'Official Documentation', source: 'Framework Docs', reason: 'Implementation guide', action: 'Open' },
-    ];
-  };
-
-  // AI Extract and Fact Check Debounce
+  // AI Fact Check Debounce
   useEffect(() => {
     if (!transcript || transcript.length < 20 || status === 'completed') return;
     const timeout = setTimeout(async () => {
       const recentTranscript = transcript.slice(-1000);
-
       const newCorrections = await factCheckTranscript(recentTranscript);
       if (newCorrections && newCorrections.length > 0) {
         setCorrections(prev => {
@@ -247,25 +340,9 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           return merged;
         });
       }
-
-      const subjectKey = await extract3DSubject(recentTranscript);
-      if (subjectKey) {
-        const MODEL_MAP = {
-          'heart': 'https://modelviewer.dev/shared-assets/models/Heart.glb',
-          'brain': 'https://modelviewer.dev/shared-assets/models/Brain.glb',
-          'earth': 'https://modelviewer.dev/shared-assets/models/Earth.glb',
-          'skeleton': 'https://modelviewer.dev/shared-assets/models/skeleton.glb',
-          'car': 'https://modelviewer.dev/shared-assets/models/car.glb',
-          'astronaut': 'https://modelviewer.dev/shared-assets/models/Astronaut.glb'
-        };
-        const model = MODEL_MAP[subjectKey.toLowerCase()];
-        if (model && model !== active3DModel) {
-          setActive3DModel(model);
-        }
-      }
     }, 5000);
     return () => clearTimeout(timeout);
-  }, [transcript, status, active3DModel]);
+  }, [transcript, status]);
 
   // Keep classRef in sync
   useEffect(() => {
@@ -275,24 +352,25 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       notes,
       duration,
       status,
-      modelUrl: active3DModel
     };
-  }, [classData, transcript, notes, duration, status, active3DModel]);
+  }, [classData, transcript, notes, duration, status]);
 
   // Auto-save periodically
   useEffect(() => {
+    if (status !== 'recording') return;
     const interval = setInterval(() => {
       saveClass({
         ...classRef.current,
         transcript,
         notes,
-        duration,
-        status,
-        modelUrl: active3DModel
+        duration: durationRef.current,
+        status: 'recording',
+        joinCode,
+        attendees,
       });
     }, 5000);
     return () => clearInterval(interval);
-  }, [transcript, notes, duration, status, active3DModel]);
+  }, [status, transcript, notes, joinCode, attendees]);
 
   // Timer
   useEffect(() => {
@@ -314,27 +392,52 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
   useEffect(() => {
     notesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [notes, activeTab]);
+
   const [errorMessage, setErrorMessage] = useState(null);
   const [manualNoteText, setManualNoteText] = useState('');
 
-  // Continuous auto-save to IndexedDB every 5 seconds while recording
-  useEffect(() => {
-    if (status !== 'recording') return;
-    const interval = setInterval(async () => {
-      try {
-        await saveClass({
-          ...classData,
-          transcript,
-          notes,
-          duration: durationRef.current,
-          status: 'recording'
-        });
-      } catch (e) {
-        console.error('Auto-save failed:', e);
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [status, classData, transcript, notes]);
+  // ─── Note counter for numbering ───────────────────────────
+  const noteCounterRef = useRef(notes.length);
+
+  // ─── Build a structured brief note from raw speech text ───
+  const buildBriefNote = useCallback((rawText, timestamp, id) => {
+    const cleaned = rawText.replace(/\b(um|uh|like|you know|basically|actually|sort of|kind of|I mean|right|okay so|well|so yeah|you see)\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+    if (cleaned.length < 6) return null;
+
+    // Split into sentences
+    const sentences = cleaned
+      .replace(/([.!?])\s+/g, '$1|SPLIT|')
+      .split('|SPLIT|')
+      .map(s => s.trim())
+      .filter(s => s.length > 5);
+
+    // Take up to 3 key sentences for brevity
+    const keyPoints = sentences.slice(0, 3);
+    noteCounterRef.current += 1;
+
+    // Format as concise bullet text
+    let formatted = keyPoints.map(s => {
+      // Capitalize first letter
+      let t = s.charAt(0).toUpperCase() + s.slice(1);
+      // Ensure ends with period
+      if (!/[.!?]$/.test(t)) t += '.';
+      return t;
+    }).join(' ');
+
+    // Truncate to ~200 chars if too long for brevity
+    if (formatted.length > 220) {
+      formatted = formatted.slice(0, 217) + '...';
+    }
+
+    return {
+      id,
+      pointNumber: noteCounterRef.current,
+      text: formatted,
+      timestamp,
+      isEdited: false,
+      highlights: [],
+    };
+  }, []);
 
   // Real Speech and Audio engine setup
   const startListening = useCallback(async () => {
@@ -346,7 +449,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     }
 
     if (!engineRef.current.isSupported()) {
-      setErrorMessage('Live speech transcription is not natively supported in this browser. You can use the "Simulate Lecture Audio Stream" below to test live class AI notes.');
+      setErrorMessage('Live speech transcription is not supported in this browser. Use Chrome or Edge, or click "Simulate Lecture" below to test.');
     }
 
     // Request Microphone & Setup MediaRecorder
@@ -364,15 +467,12 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
             options = { mimeType: 'audio/webm' };
           } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
             options = { mimeType: 'audio/mp4' };
-          } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-            options = { mimeType: 'audio/aac' };
           }
         }
 
         try {
           mediaRecorderRef.current = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
         } catch {
-          // Native fallback if browser rejected options
           mediaRecorderRef.current = new MediaRecorder(stream);
         }
 
@@ -390,7 +490,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       }
     } catch (err) {
       console.warn('Microphone access notice:', err);
-      setErrorMessage('Microphone access is paused or blocked. Please enable microphone permissions in your browser or click "Simulate Lecture Audio Stream" to test AI notes.');
+      setErrorMessage('Microphone access denied or unavailable. Enable microphone permissions or click "Simulate Lecture" to test AI notes.');
     }
 
     // Start SpeechEngine if supported
@@ -400,8 +500,8 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           setTranscript((prev) => (prev ? prev + ' ' + finalText : finalText));
           setInterimText('');
 
-          const notePoint = createNotePoint(finalText, durationRef.current, generateId());
-          if (notePoint.text.length > 5) {
+          const notePoint = buildBriefNote(finalText, durationRef.current, generateId());
+          if (notePoint) {
             setNotes((prev) => [...prev, notePoint]);
           }
           detectTopics(finalText);
@@ -414,7 +514,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
         engineRef.current.onError = (error) => {
           console.warn('Speech engine notice:', error);
           if (error === 'not-allowed') {
-            setErrorMessage('Microphone permission was denied. Please allow microphone access or click "Simulate Lecture Audio Stream".');
+            setErrorMessage('Microphone permission denied. Allow microphone access in browser settings.');
           }
         };
 
@@ -425,7 +525,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     } catch (err) {
       console.error('Failed to start speech engine:', err);
     }
-  }, [detectTopics]);
+  }, [detectTopics, buildBriefNote]);
 
   const pauseListening = useCallback(() => {
     if (engineRef.current) {
@@ -455,11 +555,19 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     setStatus('recording');
   }, [startListening]);
 
+  // Guard against rapid-fire toggles causing flicker
+  const toggleGuardRef = useRef(false);
   const toggleListening = useCallback(async () => {
-    if (isListening) {
-      pauseListening();
-    } else {
-      await resumeListening();
+    if (toggleGuardRef.current) return;
+    toggleGuardRef.current = true;
+    try {
+      if (isListening) {
+        pauseListening();
+      } else {
+        await resumeListening();
+      }
+    } finally {
+      setTimeout(() => { toggleGuardRef.current = false; }, 300);
     }
   }, [isListening, pauseListening, resumeListening]);
 
@@ -519,8 +627,9 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     const autoSummary = await summarizeNotes(notes, transcript);
 
     const finalNotes = autoSummary?.cleanNotes?.length > 0
-      ? autoSummary.cleanNotes.map(n => ({
+      ? autoSummary.cleanNotes.map((n, idx) => ({
           id: generateId(),
+          pointNumber: idx + 1,
           text: n.text,
           timestamp: n.timestamp,
           highlights: []
@@ -537,10 +646,8 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       status: 'completed',
       summary: autoSummary,
       audioBlob: (audioBlob instanceof Blob) ? audioBlob : null,
-      modelUrl: active3DModel || null,
       topics: topicHistory || [],
       currentTopic: currentTopic || 'General',
-      smartResources: smartResources || [],
       joinCode: joinCode,
       attendees: attendees || [],
     };
@@ -555,7 +662,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       }
     }
     return finalData;
-  }, [classData?.id, subject?.id, transcript, notes, onRefreshClass, topicHistory, currentTopic, smartResources, active3DModel]);
+  }, [classData?.id, subject?.id, transcript, notes, onRefreshClass, topicHistory, currentTopic, joinCode, attendees]);
 
   // Start listening on mount if recording session
   useEffect(() => {
@@ -651,12 +758,16 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
     return parsedElements;
   };
 
+  // Current topic visuals and resources
+  const topicVisual = TOPIC_VISUALS[currentTopic] || DEFAULT_VISUAL;
+  const topicResources = SMART_RESOURCES[currentTopic] || DEFAULT_RESOURCES;
+
   const ResourceIcon = ({ type }) => {
     switch (type) {
-      case 'book': return <BookOpen size={18} />;
-      case 'pdf': return <File size={18} />;
-      case 'doc': return <Link2 size={18} />;
-      default: return <FileText size={18} />;
+      case 'book': return <BookOpen size={16} />;
+      case 'pdf': return <File size={16} />;
+      case 'doc': return <Link2 size={16} />;
+      default: return <FileText size={16} />;
     }
   };
 
@@ -666,7 +777,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       {showTopicChange && lastTopicChange && (
         <div className="topic-change-toast">
           <Zap size={16} className="toast-icon" />
-          <span>Topic updated</span>
+          <span>Topic detected</span>
           <span className="toast-arrow">→</span>
           <span className="toast-topic">{lastTopicChange.to}</span>
         </div>
@@ -818,12 +929,12 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
               Notes
             </Button>
             <Button
-              variant={activeTab === 'studio' ? 'primary' : 'ghost'}
+              variant={activeTab === 'visuals' ? 'primary' : 'ghost'}
               size="sm"
-              onClick={() => setActiveTab('studio')}
-              leftIcon={<Cuboid size={16} />}
+              onClick={() => setActiveTab('visuals')}
+              leftIcon={<Image size={16} />}
             >
-              3D View
+              Topic Visuals
             </Button>
           </div>
 
@@ -862,13 +973,13 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
                       onClick={() => {
                         const sample = "Today we are analyzing Convolutional Neural Networks and Balanced Search Trees. In an AVL tree, the balance factor is maintained strictly between negative one and positive one. For CNNs, convolution operations apply filter kernels to produce feature maps, followed by pooling layers to downsample spatial dimensions. Next, backpropagation computes the gradient of the loss function using the chain rule.";
                         setTranscript(prev => (prev ? prev + ' ' + sample : sample));
-                        const notePoint = createNotePoint(sample, durationRef.current || 12, generateId());
-                        setNotes(prev => [...prev, notePoint]);
+                        const notePoint = buildBriefNote(sample, durationRef.current || 12, generateId());
+                        if (notePoint) setNotes(prev => [...prev, notePoint]);
                         detectTopics(sample);
                       }}
                     >
                       <Sparkles size={14} />
-                      <span>Simulate Lecture Audio Stream</span>
+                      <span>Simulate Lecture</span>
                     </button>
                   )}
                 </div>
@@ -884,7 +995,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
             </div>
           </div>
 
-          {/* Notes Panel */}
+          {/* Notes Panel — Point-wise brief notes */}
           <div className={`content-panel ${activeTab === 'notes' ? 'active' : ''}`}>
             <div className="panel-header">
               <FileText size={18} color="var(--success-500)" />
@@ -897,17 +1008,26 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
                   <FileText size={40} color="var(--text-tertiary)" />
                   <p>Notes will appear here automatically</p>
                   <p className="empty-subtext">
-                    As you speak, key points are extracted
+                    As you speak, key points are extracted into brief notes
                   </p>
                 </div>
               ) : (
                 <>
                   {notes.map((note) => (
-                    <div key={note.id} className="note-item">
-                      <div className="note-bullet" />
-                      <div className="note-body">
-                        <div className="note-text">{note.text}</div>
-                        <div className="note-timestamp">{formatDuration(note.timestamp)}</div>
+                    <div key={note.id} className="note-item" style={{ display: 'flex', gap: '12px', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+                      <div style={{
+                        width: '28px', height: '28px', borderRadius: '8px',
+                        background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(168,85,247,0.1))',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, fontSize: '12px', fontWeight: 700, color: '#A855F7'
+                      }}>
+                        {note.pointNumber || '•'}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div className="note-text" style={{ fontSize: '13px', lineHeight: '1.55', color: 'var(--text-primary)' }}>{note.text}</div>
+                        <div className="note-timestamp" style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                          ⏱ {formatDuration(note.timestamp)}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -920,8 +1040,10 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!manualNoteText.trim()) return;
+                noteCounterRef.current += 1;
                 const newNote = {
                   id: generateId(),
+                  pointNumber: noteCounterRef.current,
                   text: manualNoteText.trim(),
                   timestamp: durationRef.current,
                   highlights: []
@@ -942,19 +1064,90 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
             </form>
           </div>
 
-          {/* 3D Studio Panel */}
-          <div className={`content-panel ${activeTab === 'studio' ? 'active' : ''}`}>
+          {/* Topic Visuals Panel — Images & Flowcharts */}
+          <div className={`content-panel ${activeTab === 'visuals' ? 'active' : ''}`}>
             <div className="panel-header">
-              <Cuboid size={18} color="var(--ai-600)" />
-              <span>3D Visualization</span>
-              {active3DModel && <Badge variant="ai" size="sm">Model Loaded</Badge>}
+              <Image size={18} color="var(--ai-600)" />
+              <span>Topic Visuals</span>
+              {currentTopic !== 'Introduction' && currentTopic !== 'General Discussion' && (
+                <Badge variant="ai" size="sm">{currentTopic}</Badge>
+              )}
             </div>
-            <div className="studio-content">
-              <SubjectStudio modelUrl={active3DModel} />
+            <div className="studio-content" style={{ padding: '16px', overflowY: 'auto' }}>
+              {/* Topic Image */}
+              {topicVisual.image ? (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{
+                    borderRadius: '12px', overflow: 'hidden',
+                    border: '1px solid var(--border-subtle)',
+                    background: '#fff',
+                  }}>
+                    <img
+                      src={topicVisual.image}
+                      alt={currentTopic}
+                      style={{ width: '100%', maxHeight: '280px', objectFit: 'contain', display: 'block', padding: '8px' }}
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                  </div>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: '1.5', fontStyle: 'italic' }}>
+                    {topicVisual.caption}
+                  </p>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '30px 16px', color: 'var(--text-tertiary)' }}>
+                  <Image size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                  <p style={{ fontSize: '13px' }}>Speak about a topic to see related visuals</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-quaternary)' }}>
+                    Supports: CNN, Decision Trees, Sorting, OS, DBMS, Networks, and more
+                  </p>
+                </div>
+              )}
+
+              {/* Flowchart */}
+              <div style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                  <GitBranch size={14} style={{ color: 'var(--primary-500)' }} />
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {currentTopic !== 'Introduction' && currentTopic !== 'General Discussion'
+                      ? `${currentTopic} — Process Flow`
+                      : 'Lecture Flow'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 8px' }}>
+                  {topicVisual.flowchart.map((step, idx) => (
+                    <div key={idx}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '10px 14px',
+                        background: step.color + '15',
+                        border: `1px solid ${step.color}30`,
+                        borderRadius: '10px',
+                      }}>
+                        <div style={{
+                          width: '24px', height: '24px', borderRadius: '6px',
+                          background: step.color + '25', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: '11px', fontWeight: 700,
+                          color: step.color, flexShrink: 0,
+                        }}>
+                          {idx + 1}
+                        </div>
+                        <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                          {step.label}
+                        </span>
+                      </div>
+                      {idx < topicVisual.flowchart.length - 1 && (
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0' }}>
+                          <div style={{ width: '2px', height: '12px', background: 'var(--border-subtle)' }} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Controls */}
+          {/* ─── Controls ─── */}
           <div className="session-controls">
             {status === 'completed' ? (
               <div className="controls-center">
@@ -969,6 +1162,7 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
               </div>
             ) : (
               <div className="controls-dock">
+                {/* Discard */}
                 <Button
                   variant="danger"
                   size="icon"
@@ -976,20 +1170,30 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
                   aria-label="Discard Recording"
                   leftIcon={<Trash2 size={20} />}
                 />
-                <Button
-                  variant={isListening ? 'secondary' : 'primary'}
-                  size="icon-lg"
+
+                {/* Single Mic + Pause/Play button */}
+                <button
+                  type="button"
                   onClick={toggleListening}
-                  leftIcon={isListening ? <Pause size={24} /> : <Play size={24} />}
-                  aria-label={isListening ? 'Pause' : 'Resume'}
-                />
-                <Button
-                  variant={isListening ? 'primary' : 'ghost'}
-                  size="icon-lg"
-                  onClick={toggleListening}
-                  leftIcon={isListening ? <Mic size={24} /> : <MicOff size={24} />}
-                  aria-label={isListening ? 'Stop Listening' : 'Start Listening'}
-                />
+                  aria-label={isListening ? 'Pause Recording' : 'Resume Recording'}
+                  style={{
+                    width: '56px', height: '56px', borderRadius: '50%',
+                    border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isListening
+                      ? 'linear-gradient(135deg, #EF4444, #DC2626)'
+                      : 'linear-gradient(135deg, #7C3AED, #A855F7)',
+                    boxShadow: isListening
+                      ? '0 0 20px rgba(239, 68, 68, 0.4)'
+                      : '0 0 20px rgba(124, 58, 237, 0.4)',
+                    transition: 'background 0.3s ease, box-shadow 0.3s ease',
+                    color: '#fff',
+                  }}
+                >
+                  {isListening ? <Pause size={26} /> : <Mic size={26} />}
+                </button>
+
+                {/* Finish & View Notes */}
                 <Button
                   variant="success"
                   size="icon-lg"
@@ -1003,95 +1207,105 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
           </div>
         </div>
 
-        {/* RIGHT PANEL - AI Understanding */}
+        {/* RIGHT PANEL — Smart Resources & Topic Timeline */}
         <aside className="right-panel">
-          {/* Current Topic Card */}
-          <Card className="ai-topic-card">
-            <div className="ai-card-header">
-              <div className="ai-card-icon">
-                <BrainCircuit size={20} />
-              </div>
-              <div>
-                <h3>AI Understanding</h3>
-                <p className="ai-card-subtitle">Real-time topic detection</p>
-              </div>
-              <Badge variant="ai" size="sm">ACTIVE</Badge>
-            </div>
-
-            <div className="topic-main">
-              <div className="topic-label">Current Topic</div>
-              <h2 className="topic-title">{currentTopic}</h2>
-            </div>
-
-            <div className="subtopic-main">
-              <div className="topic-label">Currently Discussing</div>
-              <h3 className="subtopic-title">{currentSubtopic}</h3>
-            </div>
-
-            {/* Progress indicator */}
-            <div className="topic-progress">
-              <div className="progress-label">
-                <span>Lecture Progress</span>
-                <span>{Math.round((duration / 3600) * 100)}%</span>
-              </div>
-              <Progress value={(duration / 3600) * 100} max={100} size="sm" />
-            </div>
-          </Card>
-
-          {/* Related Concepts */}
-          <Card className="ai-concepts-card">
+          {/* Smart Resources */}
+          <Card className="ai-resources-card">
             <div className="ai-card-header">
               <div className="ai-card-icon">
                 <Sparkles size={20} />
               </div>
               <div>
-                <h3>Related Concepts</h3>
-                <p className="ai-card-subtitle">Key terms for this topic</p>
-              </div>
-            </div>
-            <div className="concepts-grid">
-              {relatedConcepts.map((concept, i) => (
-                <button key={i} className="concept-chip" onClick={() => alert(`Search: ${concept}`)}>
-                  {concept}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          {/* Smart Resources */}
-          <Card className="ai-resources-card">
-            <div className="ai-card-header">
-              <div className="ai-card-icon">
-                <BookOpen size={20} />
-              </div>
-              <div>
                 <h3>Smart Resources</h3>
-                <p className="ai-card-subtitle">AI-curated for current topic</p>
+                <p className="ai-card-subtitle">
+                  {currentTopic !== 'Introduction' && currentTopic !== 'General Discussion'
+                    ? `For: ${currentTopic}`
+                    : 'AI-curated for current topic'}
+                </p>
               </div>
             </div>
-            <div className="resources-list">
-              {smartResources.slice(0, 3).map((resource, i) => (
-                <div key={i} className="resource-item">
-                  <div className="resource-icon" style={{ background: getResourceColor(resource.type) }}>
+            <div className="resources-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '4px 0' }}>
+              {topicResources.map((resource, i) => (
+                <a
+                  key={i}
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    padding: '12px 14px',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '10px',
+                    textDecoration: 'none',
+                    transition: 'border-color 0.2s ease',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--primary-400)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
+                >
+                  <div style={{
+                    width: '36px', height: '36px', borderRadius: '10px',
+                    background: resource.type === 'book' ? 'rgba(59,130,246,0.12)' :
+                                resource.type === 'pdf' ? 'rgba(16,185,129,0.12)' :
+                                'rgba(139,92,246,0.12)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: resource.type === 'book' ? '#3B82F6' :
+                           resource.type === 'pdf' ? '#10B981' : '#8B5CF6',
+                    flexShrink: 0,
+                  }}>
                     <ResourceIcon type={resource.type} />
                   </div>
-                  <div className="resource-info">
-                    <h4 className="resource-title">{resource.title}</h4>
-                    <p className="resource-source">{resource.source}</p>
-                    <p className="resource-reason">{resource.reason}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {resource.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                      {resource.source}
+                    </div>
                   </div>
-                  <Button variant="ghost" size="xs" onClick={() => alert(`${resource.action}: ${resource.title}`)}>
-                    {resource.action}
-                  </Button>
-                </div>
+                  <ExternalLink size={14} style={{ color: 'var(--text-quaternary)', flexShrink: 0 }} />
+                </a>
               ))}
             </div>
-            <Button variant="outline" size="sm" fullWidth leftIcon={<Link2 size={14} />}>
-              View All Resources
-            </Button>
           </Card>
 
-          {/* Topic History */}
+          {/* Lecture Progress */}
+          <Card className="ai-topic-card">
+            <div className="ai-card-header">
+              <div className="ai-card-icon">
+                <Radio size={20} />
+              </div>
+              <div>
+                <h3>Lecture Progress</h3>
+                <p className="ai-card-subtitle">Recording status</p>
+              </div>
+              <Badge variant={isListening ? 'live' : 'neutral'} size="sm">
+                {isListening ? 'LIVE' : status === 'completed' ? 'DONE' : 'PAUSED'}
+              </Badge>
+            </div>
+
+            <div style={{ padding: '4px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                <span>Duration: {formatDuration(duration)}</span>
+                <span>{Math.min(Math.round((duration / 3600) * 100), 100)}%</span>
+              </div>
+              <Progress value={Math.min((duration / 3600) * 100, 100)} max={100} size="sm" />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--primary-500)' }}>{notes.length}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Notes</div>
+              </div>
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--success-500)' }}>{attendees.length}</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Students</div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Topic Timeline */}
           {topicHistory.length > 0 && (
             <Card className="ai-history-card">
               <div className="ai-card-header">
@@ -1109,7 +1323,6 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
                     <div className="timeline-time">{formatDuration(entry.time)}</div>
                     <div className="timeline-content">
                       <span className="timeline-topic">{entry.topic}</span>
-                      <span className="timeline-subtopic">{entry.subtopic}</span>
                     </div>
                   </div>
                 ))}
@@ -1120,15 +1333,6 @@ function LiveSession({ classData, subject, onNavigate, onRefreshClass }) {
       </div>
     </div>
   );
-}
-
-function getResourceColor(type) {
-  switch (type) {
-    case 'book': return 'var(--primary-100)';
-    case 'pdf': return 'var(--success-100)';
-    case 'doc': return 'var(--ai-100)';
-    default: return 'var(--bg-tertiary)';
-  }
 }
 
 export default LiveSession;
